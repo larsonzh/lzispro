@@ -3,7 +3,7 @@ Multi process parallel acquisition tool for IP address data of ISP network opera
 
 中国区 ISP 网络运营商 IP 地址数据多进程并行处理批量获取工具
 
-*哈哈，牛逼的玩意儿 ！！！*
+*哈哈，牛逼玩意儿 ！！！*
 
 **v1.0.0**
 
