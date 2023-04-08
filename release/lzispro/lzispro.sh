@@ -644,7 +644,7 @@ get_shell_cmd() {
 fetch_isp_data() {
     local fname="${ISP_DATA_0}" sh_str="$( get_shell_cmd )" findex="0" pflag="0" index="0"
     [ "${1}" != "ipv4" ] && fname="${ISP_IPV6_DATA_0}"
-    which nohup > /dev/null 2>&1 && sh_str="nohup $(sh_str)"
+    which nohup > /dev/null 2>&1 && sh_str="nohup ${sh_str}"
     until [ "${findex}" -ge "${PARA_QUERY_PROC_NUM}" ]
     do
         [ -f "${PATH_TMP}/${fname%.*}.dat_${findex}" ] && \
