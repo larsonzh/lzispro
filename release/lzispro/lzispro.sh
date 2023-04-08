@@ -2,6 +2,8 @@
 # lzispro.sh v1.0.0
 # By LZ 妙妙呜 (larsonzhang@gmail.com)
 
+# Multi process parallel acquisition tool for IP address data of ISP network operators in China
+
 # Purpose:
 # 1.Download the latest IP information data from APNIC.
 # 2.Extract the latest IPv4/6 address raw data of Chinese Mainland, Hong Kong, Macao and Taiwan from the APINC IP
