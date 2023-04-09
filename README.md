@@ -13,7 +13,7 @@ Multi process parallel acquisition tool for IP address data of ISP network opera
 
 脚本在 Linux 环境下使用，运行平台包括：Ubuntu，Deepin，ASUSWRT-Merlin，OpenWrt，......
 
-**功能**
+# 功能
 <ul><li>从 APNIC 下载最新 IP 信息数据。</li>
 <li>从 APINC IP 信息数据中抽取出最新、最完整的中国大陆及港澳台地区所有 IPv4/6 原始地址数据。</li>
 <li>采用多进程并行处理方式，向 APNIC 逐条查询中国大陆地区的 IPv4/6 原始地址数据，得到归属信息，生成能够包含中国大陆地区所有 IPv4/6 地址的 ISP 运营商分项数据。</li>
@@ -31,7 +31,7 @@ Multi process parallel acquisition tool for IP address data of ISP network opera
     <li>澳门地区</li>
     <li>台湾地区</li></ul></ul>
 
-**安装及运行**
+# 安装及运行
 
 一、安装支撑软件
 
@@ -138,11 +138,11 @@ Multi process parallel acquisition tool for IP address data of ISP network opera
 ```
 </ul>
 
-**卸载**
+# 卸载
 
 <ul>直接删除 lzispro 目录。</ul>
 
-**运行效果图**
+# 运行效果图
 <ul>华硕 GT-AX6000 梅林固件路由器，四核心 ARM CPU，主频 2.0 MHz，脚本「并行查询处理多进程数量」参数设置为：PARA_QUERY_PROC_NUM="64"。实际用时从单进程的两个多小时减少到 10 分钟以下。并行查询处理多进程同时运行时，路由器 CPU 四个内核的资源占用率均在 80~90% 之间，路由器网络内外之间也均保持畅通。</ul>
 
 ![lzispro](https://user-images.githubusercontent.com/73221087/230725155-b2e685d1-d8ba-4f44-8edc-0cd77a92ecae.jpg)
