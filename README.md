@@ -33,7 +33,7 @@ Multi process parallel acquisition tool for IP address data of ISP network opera
 
 # 安装及运行
 
-一、安装支撑软件
+**一、安装支撑软件**
 
 <ul>脚本使用前最好将所在系统升级到最新版本，同时要在系统中联网安装脚本执行时必须依赖的软件模块：whois，wget</ul>
 <ul><li>Ubuntu | Deepin</li>
@@ -63,7 +63,7 @@ Multi process parallel acquisition tool for IP address data of ISP network opera
 
 <ul>其他 Linux 平台系统依此类推。</ul>
 
-二、安装项目脚本
+**二、安装项目脚本**
 
 <ul>1.下载本工具的软件压缩包 lzsipcn-[version ID].tgz（例如：lzispro-v1.0.1.tgz）。</ul>
 
@@ -81,7 +81,7 @@ Multi process parallel acquisition tool for IP address data of ISP network opera
 
 <ul>5.在 lzispro 目录中，lzispro.sh 为本工具的可执行脚本，若读写运行权限不足，手工赋予 755 以上即可。</ul>
 
-三、脚本运行命令
+**三、脚本运行命令**
 
 <ul>
 
@@ -100,7 +100,7 @@ Multi process parallel acquisition tool for IP address data of ISP network opera
 <ul>3.进行 ISP 运营商分项数据归类时，脚本需要通过互联网访问 APNIC 做海量信息查询，可能要耗费一、两个小时以上时间。切勿中断此执行过程，并耐心等候。</ul>
 <ul>4.若要减少 ISP 运营商分项数据归类处理时间，可根据设备硬件平台性能，在不影响设备正常使用的前提下，酌情并适可而止的修改查询 ISP 信息归类数据的「并行查询处理多进程数量 PARA_QUERY_PROC_NUM」参数，取值越大，效率越高，用时越短。例如，从缺省的 4 进程，提高到 8 进程，16 进程，甚至 64 进程，效率可能获得翻倍，或数倍提高，大大降低程序运行时间，改善应用体验。</ul>
 
-四、目录结构
+**四、目录结构**
 
 <ul>在项目目录 lzispro 下，脚本为获取和生成的每类文本形式的数据设立独立的存储目录，在程序执行完成后，从这些目录中可获取所需数据。</ul>
 <ul>
@@ -119,7 +119,7 @@ Multi process parallel acquisition tool for IP address data of ISP network opera
 ```
 </ul>
 
-五、参数配置
+**五、参数配置**
 
 <ul>lzispro.sh 脚本是本工具的主程序，可用文本编辑工具打开查看、修改其中的内容。</ul>
     
