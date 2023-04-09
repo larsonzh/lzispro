@@ -492,7 +492,7 @@ get_area_data() {
     return "1"
 }
 
-divide_data_into_four() {
+split_data_file() {
     [ ! -f "${1}" ] && return "1"
     ! echo "${PARA_QUERY_PROC_NUM:="4"}" | grep -qE '^[1-9][0-9]*$' && PARA_QUERY_PROC_NUM="4"
     local findex="0"
@@ -601,7 +601,7 @@ get_shell_cmd() {
     echo "${sh_str}"
 }
 
-start_isp_data_proc() {
+isp_data_multi_proc() {
     local fname="${ISP_DATA_0}" prefix_str="$( get_shell_cmd )" findex="0"
     [ "${1}" != "ipv4" ] && fname="${ISP_IPV6_DATA_0}"
     until [ "${findex}" -ge "${PARA_QUERY_PROC_NUM}" ]
@@ -629,17 +629,17 @@ get_isp_data() {
     [ "${1}" = "ipv6" ] && [ "${IPV6_DATA:="2"}" != "0" ] && [ "${IPV6_DATA}" != "1" ] && [ "${IPV6_DATA}" != "2" ] && return "0"
     if [ "${1}" = "ipv4" ]; then
         lz_echo "Generating IPv4 ISP item data takes a long time."
-        divide_data_into_four "${PATH_TMP}/${ISP_DATA_0%.*}.dat" || return "1"
+        split_data_file "${PATH_TMP}/${ISP_DATA_0%.*}.dat" || return "1"
     else
         lz_echo "Generating IPv6 ISP item data takes a long time."
-        divide_data_into_four "${PATH_TMP}/${ISP_IPV6_DATA_0%.*}.dat" || return "1"
+        split_data_file "${PATH_TMP}/${ISP_IPV6_DATA_0%.*}.dat" || return "1"
     fi
     local suffix_str=""
     [ "${PARA_QUERY_PROC_NUM}" -gt "1" ] && suffix_str="es"
     lz_echo "Use ${PARA_QUERY_PROC_NUM} process${suffix_str} for parallel query processing."
     lz_echo "Don't interrupt & Please wait......"
     [ "${PROGRESS_BAR}" = "0" ] && echo -n "."
-    start_isp_data_proc "${1}" || return "1"
+    isp_data_multi_proc "${1}" || return "1"
     check_isp_data "${1}" || return "1"
     return "0"
 }
