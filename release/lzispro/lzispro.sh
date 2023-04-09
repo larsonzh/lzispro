@@ -1,5 +1,5 @@
 #!/bin/sh
-# lzispro.sh v1.0.0
+# lzispro.sh v1.0.1
 # By LZ 妙妙呜 (larsonzhang@gmail.com)
 
 # Multi process parallel acquisition tool for IP address data of ISP network operators in China
@@ -148,7 +148,7 @@ LOCK_FILE_ID="323"
 # Forced Unlocking Command Word
 UNLOCK_CMD="unlock"
 
-LZ_VERSION="v1.0.0"
+LZ_VERSION="v1.0.1"
 
 # ------------------ Function -------------------
 
@@ -217,7 +217,6 @@ kill_child_processes() {
     ps | awk '$0 ~ "'"${ISP_DATA_SCRIPT}"'" && !/awk/ {system("kill -9 "$1" > /dev/null 2>&1")}'
     remove_div_data "ipv4"
     remove_div_data "ipv6"
-    rm -f "${PATH_LOCK}/${LOCK_FILE%.*}_"*
 }
 
 forced_unlock() {
@@ -417,68 +416,29 @@ init_project_dir() {
     return "0"
 }
 
+export_env_var() {
+    local index="0"
+    until [ "${index}" -gt "10" ]
+    do
+        export ISP_DATA_"${index}"
+        export ISP_IPV6_DATA_"${index}"
+        index="$(( index + 1 ))"
+    done
+    export PATH_TMP
+    export WHOIS_HOST
+    export RETRY_NUM
+    export PATH_LOCK
+    export LOCK_FILE
+}
+
 init_isp_data_script() {
     if ! grep -qEm 1 '^[ ]*#![\/]bin[\/]sh[ ]|^[ ]*#![\/]bin[\/]sh$' "${PATH_FUNC}/${ISP_DATA_SCRIPT}"; then
         lz_echo "${PATH_FUNC}/${ISP_DATA_SCRIPT} file is damaged."
         lz_echo "Game Over !!!"
         return "1"
     fi
-    if ! grep -qE '^[ ]*TRAN_PATH_SRC=' "${PATH_FUNC}/${ISP_DATA_SCRIPT}"; then
-        lz_echo "${PATH_FUNC}/${ISP_DATA_SCRIPT} file is damaged."
-        lz_echo "Game Over !!!"
-        return "1"
-    fi
-    if ! grep -qE '^[ ]*TRAN_PATH_DST=' "${PATH_FUNC}/${ISP_DATA_SCRIPT}"; then
-        lz_echo "${PATH_FUNC}/${ISP_DATA_SCRIPT} file is damaged."
-        lz_echo "Game Over !!!"
-        return "1"
-    fi
-    if ! grep -qE '^[ ]*TRAN_WHOIS_HOST=' "${PATH_FUNC}/${ISP_DATA_SCRIPT}"; then
-        lz_echo "${PATH_FUNC}/${ISP_DATA_SCRIPT} file is damaged."
-        lz_echo "Game Over !!!"
-        return "1"
-    fi
-    if ! grep -qE '^[ ]*TRAN_RETRY_NUM=' "${PATH_FUNC}/${ISP_DATA_SCRIPT}"; then
-        lz_echo "${PATH_FUNC}/${ISP_DATA_SCRIPT} file is damaged."
-        lz_echo "Game Over !!!"
-        return "1"
-    fi
-    if ! grep -qE '^[ ]*TRAN_PATH_LOCK=' "${PATH_FUNC}/${ISP_DATA_SCRIPT}"; then
-        lz_echo "${PATH_FUNC}/${ISP_DATA_SCRIPT} file is damaged."
-        lz_echo "Game Over !!!"
-        return "1"
-    fi
-    if ! grep -qE '^[ ]*TRAN_LOCK_FILE=' "${PATH_FUNC}/${ISP_DATA_SCRIPT}"; then
-        lz_echo "${PATH_FUNC}/${ISP_DATA_SCRIPT} file is damaged."
-        lz_echo "Game Over !!!"
-        return "1"
-    fi
-    sed -i -e "s:^[ ]*TRAN_PATH_SRC=.*$:TRAN_PATH_SRC=\"${PATH_TMP}\":g" \
-        -e "s:^[ ]*TRAN_PATH_DST=.*$:TRAN_PATH_DST=\"${PATH_TMP}\":g" \
-        -e "s:^[ ]*TRAN_WHOIS_HOST=.*$:TRAN_WHOIS_HOST=\"${WHOIS_HOST}\":g" \
-        -e "s:^[ ]*TRAN_RETRY_NUM=.*$:TRAN_RETRY_NUM=\"${RETRY_NUM}\":g" \
-        -e "s:^[ ]*TRAN_PATH_LOCK=.*$:TRAN_PATH_LOCK=\"${PATH_LOCK}\":g" \
-        -e "s:^[ ]*TRAN_LOCK_FILE=.*$:TRAN_LOCK_FILE=\"${LOCK_FILE}\":g" "${PATH_FUNC}/${ISP_DATA_SCRIPT}"
-    local index="0" ipv4_data="" ipv6_data=""
-    until [ "${index}" -gt "10" ]
-    do
-        if ! grep -qE "^[ ]*TRAN_ISP_DATA_${index}=" "${PATH_FUNC}/${ISP_DATA_SCRIPT}"; then
-            lz_echo "${PATH_FUNC}/${ISP_DATA_SCRIPT} file is damaged."
-            lz_echo "Game Over !!!"
-            return "1"
-        fi
-        if ! grep -qE "^[ ]*TRAN_ISP_IPV6_DATA_${index}=" "${PATH_FUNC}/${ISP_DATA_SCRIPT}"; then
-            lz_echo "${PATH_FUNC}/${ISP_DATA_SCRIPT} file is damaged."
-            lz_echo "Game Over !!!"
-            return "1"
-        fi
-        eval ipv4_data="\${ISP_DATA_${index}}"
-        eval ipv6_data="\${ISP_IPV6_DATA_${index}}"
-        sed -i -e "s/^[ ]*TRAN_ISP_DATA_${index}=.*$/TRAN_ISP_DATA_${index}=\"${ipv4_data}\"/g" \
-            -e "s/^[ ]*TRAN_ISP_IPV6_DATA_${index}=.*$/TRAN_ISP_IPV6_DATA_${index}=\"${ipv6_data}\"/g" "${PATH_FUNC}/${ISP_DATA_SCRIPT}"
-        index="$(( index + 1 ))"
-    done
     chmod +x "${PATH_FUNC}/${ISP_DATA_SCRIPT}"
+    export_env_var
     return "0"
 }
 
@@ -486,7 +446,7 @@ get_apnic_info() {
     [ -z "${DOWNLOAD_URL}" ] && DOWNLOAD_URL="http://ftp.apnic.net/apnic/stats/apnic/delegated-apnic-latest"
     local progress="--progress=bar:force"
     [ "${PROGRESS_BAR:="0"}" != "0" ] && progress="-q"
-    lz_echo "Download......"
+    lz_echo "Exciting fetch......"
     eval wget -c "${progress}" --prefer-family=IPv4 --no-check-certificate "${DOWNLOAD_URL}" -O "${PATH_TMP}/${APNIC_IP_INFO%.*}.dat"
     if [ ! -f "${PATH_TMP}/${APNIC_IP_INFO%.*}.dat" ]; then
         lz_echo "${APNIC_IP_INFO} Failed. Game Over !!!"
@@ -625,43 +585,38 @@ check_isp_data() {
 
 get_shell_cmd() {
     local sh_str=""
-    if ps | awk '$1 == "'"$$"'" && !/awk/ && !/grep/' | grep -qw 'bash'; then
+    if ps | awk '$1 == "'"$$"'" && !/awk/' | grep -qw 'bash'; then
         sh_str="bash"
-        ps | awk '$1 == "'"$$"'" && !/awk/ && !/grep/' | grep -qEw '[\/]bin[\/]bash' && sh_str="/bin/bash"
-    elif ps a 2> /dev/null | awk '$1 == "'"$$"'" && !/awk/ && !/grep/' | grep -qw 'bash'; then
+        ps | awk '$1 == "'"$$"'" && !/awk/' | grep -qEw '[\/]bin[\/]bash' && sh_str="/bin/bash"
+    elif ps a 2> /dev/null | awk '$1 == "'"$$"'" && !/awk/' | grep -qw 'bash'; then
         sh_str="bash"
-        ps a 2> /dev/null | awk '$1 == "'"$$"'" && !/awk/ && !/grep/' | grep -qEw '[\/]bin[\/]bash' && sh_str="/bin/bash"
-    elif ps | awk '$1 == "'"$$"'" && !/awk/ && !/grep/' | grep -qw 'sh'; then
+        ps a 2> /dev/null | awk '$1 == "'"$$"'" && !/awk/' | grep -qEw '[\/]bin[\/]bash' && sh_str="/bin/bash"
+    elif ps | awk '$1 == "'"$$"'" && !/awk/' | grep -qw 'sh'; then
         sh_str="sh"
-        ps | awk '$1 == "'"$$"'" && !/awk/ && !/grep/' | grep -qEw '[\/]bin[\/]sh' && sh_str="/bin/sh"
-    elif ps a 2> /dev/null | awk '$1 == "'"$$"'" && !/awk/ && !/grep/' | grep -qw 'sh'; then
+        ps | awk '$1 == "'"$$"'" && !/awk/' | grep -qEw '[\/]bin[\/]sh' && sh_str="/bin/sh"
+    elif ps a 2> /dev/null | awk '$1 == "'"$$"'" && !/awk/' | grep -qw 'sh'; then
         sh_str="sh"
-        ps a 2> /dev/null | awk '$1 == "'"$$"'" && !/awk/ && !/grep/' | grep -qEw '[\/]bin[\/]sh' && sh_str="/bin/sh"
+        ps a 2> /dev/null | awk '$1 == "'"$$"'" && !/awk/' | grep -qEw '[\/]bin[\/]sh' && sh_str="/bin/sh"
     fi
     echo "${sh_str}"
 }
 
-fetch_isp_data() {
-    local fname="${ISP_DATA_0}" sh_str="$( get_shell_cmd )" findex="0" pflag="0" index="0"
+start_isp_data_proc() {
+    local fname="${ISP_DATA_0}" prefix_str="$( get_shell_cmd )" findex="0"
     [ "${1}" != "ipv4" ] && fname="${ISP_IPV6_DATA_0}"
-    which nohup > /dev/null 2>&1 && sh_str="nohup ${sh_str}"
     until [ "${findex}" -ge "${PARA_QUERY_PROC_NUM}" ]
     do
         [ -f "${PATH_TMP}/${fname%.*}.dat_${findex}" ] && \
-            eval "${sh_str}" "${PATH_FUNC}/${ISP_DATA_SCRIPT}" "${1}" "${findex}" > /dev/null 2>&1 &
+            eval "${prefix_str}" "${PATH_FUNC}/${ISP_DATA_SCRIPT}" "${1}" "${findex}" > /dev/null 2>&1 &
         findex="$(( findex + 1 ))"
     done
     sleep 5s
+    prefix_str=""
+    ps a 2> /dev/null | awk -v count="0" '$1 == "'"$$"'" && !/awk/ {count++} END{if (count == "0") exit(1)}' && prefix_str="a"
     while true
     do
         [ "${PROGRESS_BAR}" = "0" ] && echo -n "."
-        index="0" pflag="0"
-        until [ "${index}" -ge "${PARA_QUERY_PROC_NUM}" ]
-        do
-            [ -f "${PATH_LOCK}/${LOCK_FILE%.*}_${index}.lock" ] && { pflag="1"; break; }
-            index="$(( index + 1 ))"
-        done
-        [ "${pflag}" = "0" ] && break
+        ! ps "${prefix_str}" | awk -v count="0" '$0 ~ "'"${ISP_DATA_SCRIPT}"'" && !/awk/ {count++} END{if (count == "0") exit(1)}' && break
         sleep 5s
     done
     [ "${PROGRESS_BAR}" = "0" ] && echo ""
@@ -684,7 +639,7 @@ get_isp_data() {
     lz_echo "Use ${PARA_QUERY_PROC_NUM} process${suffix_str} for parallel query processing."
     lz_echo "Don't interrupt & Please wait......"
     [ "${PROGRESS_BAR}" = "0" ] && echo -n "."
-    fetch_isp_data "${1}" || return "1"
+    start_isp_data_proc "${1}" || return "1"
     check_isp_data "${1}" || return "1"
     return "0"
 }
@@ -1017,7 +972,7 @@ get_file_time_stamp() {
 show_header() {
     BEGIN_TIME="$( date +%s -d "$( date +"%F %T" )" )"
     lz_echo
-    lz_echo "LZ ISPRO ${LZ_VERSION:="v1.0.0"} script commands start......"
+    lz_echo "LZ ISPRO ${LZ_VERSION:="v1.0.1"} script commands start......"
     lz_echo "By LZ (larsonzhang@gmail.com)"
     lz_echo "---------------------------------------------"
     lz_echo "Command (in the ${PATH_CURRENT})"

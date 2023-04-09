@@ -5,7 +5,7 @@ Multi process parallel acquisition tool for IP address data of ISP network opera
 
 *哈哈，牛逼玩意儿 ！！！*
 
-**v1.0.0**
+**v1.0.1**
 
 工具采用 Shell 脚本编写，参考并借鉴 clangcn（ https://github.com/clangcn/everyday-update-cn-isp-ip.git ）项目代码和思路，通过多进程并行处理技术，对信息检索和数据写入过程进行优化，极大提高 ISP 运营商分项地址数据生成效率，减少运行时间。在提供 IPv4 数据获取的同时，增加 IPv6 数据获取功能，以及基于 CIDR 网段聚合算法的 IPv4/6 CIDR 地址数据的生成功能。
 
@@ -65,11 +65,11 @@ Multi process parallel acquisition tool for IP address data of ISP network opera
 
 二、安装项目脚本
 
-<ul>1.下载本工具的软件压缩包 lzsipcn-[version ID].tgz（例如：lzispro-v1.0.0.tgz）。</ul>
+<ul>1.下载本工具的软件压缩包 lzsipcn-[version ID].tgz（例如：lzispro-v1.0.1.tgz）。</ul>
 
 <ul>2.将压缩包复制到设备的任意有读写权限的目录。</ul>
 
-<ul>3.在 Shell 终端中使用解压缩命令在当前目录中解压缩，生成 lzispro-[version ID] 目录（例如：lzispro-v1.0.0），其中包含一个 lzispro 目录，是脚本所在目录。</ul>
+<ul>3.在 Shell 终端中使用解压缩命令在当前目录中解压缩，生成 lzispro-[version ID] 目录（例如：lzispro-v1.0.1），其中包含一个 lzispro 目录，是脚本所在目录。</ul>
 <ul>
 
 ```markdown

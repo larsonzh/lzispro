@@ -1,5 +1,5 @@
 #!/bin/sh
-# lzispdata.sh v1.0.0
+# lzispdata.sh v1.0.1
 # By LZ 妙妙呜 (larsonzhang@gmail.com)
 
 # Obtain ISP attribution data script
@@ -19,116 +19,32 @@ IPV_TYPE="${1}"
 # Source Data File index number
 SRC_INDEX="$( printf "%u\n" "${2}" )"
 
-# Source Data File Path
-TRAN_PATH_SRC=""
-
-# Destination data file path
-TRAN_PATH_DST=""
-
-# China ISP IPv4 Raw Data Target File Name
-TRAN_ISP_DATA_0="lz_all_cn.txt"
-TRAN_ISP_DATA_1="lz_chinatelecom.txt"
-TRAN_ISP_DATA_2="lz_unicom_cnc.txt"
-TRAN_ISP_DATA_3="lz_cmcc.txt"
-TRAN_ISP_DATA_4="lz_crtc.txt"
-TRAN_ISP_DATA_5="lz_cernet.txt"
-TRAN_ISP_DATA_6="lz_gwbn.txt"
-TRAN_ISP_DATA_7="lz_othernet.txt"
-TRAN_ISP_DATA_8="lz_hk.txt"
-TRAN_ISP_DATA_9="lz_mo.txt"
-TRAN_ISP_DATA_10="lz_tw.txt"
-
-# China ISP IPv6 Raw Data Target File Name
-TRAN_ISP_IPV6_DATA_0="lz_all_cn_ipv6.txt"
-TRAN_ISP_IPV6_DATA_1="lz_chinatelecom_ipv6.txt"
-TRAN_ISP_IPV6_DATA_2="lz_unicom_cnc_ipv6.txt"
-TRAN_ISP_IPV6_DATA_3="lz_cmcc_ipv6.txt"
-TRAN_ISP_IPV6_DATA_4="lz_crtc_ipv6.txt"
-TRAN_ISP_IPV6_DATA_5="lz_cernet_ipv6.txt"
-TRAN_ISP_IPV6_DATA_6="lz_gwbn_ipv6.txt"
-TRAN_ISP_IPV6_DATA_7="lz_othernet_ipv6.txt"
-TRAN_ISP_IPV6_DATA_8="lz_hk_ipv6.txt"
-TRAN_ISP_IPV6_DATA_9="lz_mo_ipv6.txt"
-TRAN_ISP_IPV6_DATA_10="lz_tw_ipv6.txt"
-
-# IP Address Information Details Query Host
-TRAN_WHOIS_HOST="whois.apnic.net"
-
-# Maximum Number Of Retries After IP Address Query Failure
-# 0--Unlimited, 5--Default
-TRAN_RETRY_NUM="5"
-
-# Synchronization Lock File Path & Name
-TRAN_PATH_LOCK="/var/lock"
-TRAN_LOCK_FILE="lzispro.lock"
-
 # ------------------ Function -------------------
 
 init_param() {
-    LOCK_ENABLE="1"
     [ "${1}" != "2" ] && return "1"
     [ "${IPV_TYPE}" != "ipv4" ] && [ "${IPV_TYPE}" != "ipv6" ] && return "1"
     SRC_INDEX="$( printf "%u\n" "${SRC_INDEX}" )"
     ! echo "${SRC_INDEX}" | grep -qE '^[0-9][0-9]*$' && return "1"
     # Source Data File Path
-    PATH_SRC="${TRAN_PATH_SRC}"
+    PATH_SRC="${PATH_TMP}"
     [ ! -d "${PATH_SRC}" ] && return "1"
-    local index="0" ipv4_data="" ipv6_data=""
-    until [ "${index}" -gt "10" ]
-    do
-        # China ISP IPv4 Raw Data Target File Name
-        eval "ISP_DATA_${index}=\${TRAN_ISP_DATA_${index}}"
-        eval [ -z "\${ISP_DATA_${index}}" ] && return "1"
-        eval "unset TRAN_ISP_DATA_${index}"
-        # China ISP IPv6 Raw Data Target File Name
-        eval "ISP_IPV6_DATA_${index}=\${TRAN_ISP_IPV6_DATA_${index}}"
-        eval [ -z "\${ISP_IPV6_DATA_${index}}" ] && return "1"
-        eval "unset TRAN_ISP_IPV6_DATA_${index}"
-        index="$(( index + 1 ))"
-    done
     # Source Data File name
     SRC_FILENAME="${ISP_DATA_0%.*}.dat_${SRC_INDEX}"
     [ "${IPV_TYPE}" != "ipv4" ] && SRC_FILENAME="${ISP_IPV6_DATA_0%.*}.dat_${SRC_INDEX}"
     [ ! -f "${PATH_SRC}/${SRC_FILENAME}" ] && return "1"
     # Destination data file path
-    PATH_DST="${TRAN_PATH_DST}"
+    PATH_DST="${PATH_TMP}"
     [ ! -d "${PATH_DST}" ] && return "1"
     # IP Address Information Details Query Host
-    WHOIS_HOST="${TRAN_WHOIS_HOST}"
     [ -z "${WHOIS_HOST}" ] && return "1"
     # Maximum Number Of Retries After IP Address Query Failure
-    RETRY_NUM="$( printf "%u\n" "${TRAN_RETRY_NUM}" )"
+    RETRY_NUM="$( printf "%u\n" "${RETRY_NUM}" )"
     ! echo "${RETRY_NUM}" | grep -qE '^[0-9][0-9]*$' && return "1"
     # Synchronization Lock File Path & Name
-    PATH_LOCK="${TRAN_PATH_LOCK}"
-    LOCK_FILE="${TRAN_LOCK_FILE}"
     [ ! -d "${PATH_LOCK}" ] && return "1"
     [ ! -f "${PATH_LOCK}/${LOCK_FILE}" ] && return "1"
-    LOCK_FILE="${LOCK_FILE%.*}_${SRC_INDEX}.lock"
-    LOCK_ENABLE="0"
-    unset TRAN_PATH_SRC TRAN_PATH_DST TRAN_WHOIS_HOST TRAN_RETRY_NUM TRAN_PATH_LOCK TRAN_LOCK_FILE
     return "0"
-}
-
-set_lock() {
-    [ ! -d "${PATH_LOCK}" ] && {
-        LOCK_ENABLE="1"
-        return "1"
-    }
-    [ -f "${PATH_LOCK}/${LOCK_FILE}" ] && {
-        LOCK_ENABLE="1"
-        return "1"
-    }
-    touch "${PATH_LOCK}/${LOCK_FILE}"
-    [ ! -f "${PATH_LOCK}/${LOCK_FILE}" ] && {
-        LOCK_ENABLE="1"
-        return "1"
-    }
-    return "0"
-}
-
-unset_lock() {
-    [ "${LOCK_ENABLE}" = "0" ] && [ -f "${PATH_LOCK}/${LOCK_FILE}" ] && rm -f "${PATH_LOCK}/${LOCK_FILE}" 2> /dev/null
 }
 
 init_isp_data_buf() {
@@ -258,11 +174,9 @@ get_isp_data() {
 while true
 do
     init_param "${#}" || break
-    set_lock || break
     get_isp_data
     break
 done
-unset_lock
 
 exit "0"
 
