@@ -1,5 +1,5 @@
 #!/bin/sh
-# lzispdata.sh v1.0.1
+# lzispdata.sh v1.0.2
 # By LZ 妙妙呜 (larsonzhang@gmail.com)
 
 # Obtain ISP attribution data script
@@ -41,9 +41,6 @@ init_param() {
     # Maximum Number Of Retries After IP Address Query Failure
     RETRY_NUM="$( printf "%u\n" "${RETRY_NUM}" )"
     ! echo "${RETRY_NUM}" | grep -qE '^[0-9][0-9]*$' && return "1"
-    # Synchronization Lock File Path & Name
-    [ ! -d "${PATH_LOCK}" ] && return "1"
-    [ ! -f "${PATH_LOCK}/${LOCK_FILE}" ] && return "1"
     return "0"
 }
 

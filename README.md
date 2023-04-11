@@ -5,13 +5,13 @@ Multi process parallel acquisition tool for IP address data of ISP network opera
 
 *哈哈，牛逼玩意儿 ！！！*
 
-**v1.0.1**
+**v1.0.2**
 
 工具采用 Shell 脚本编写，参考并借鉴 clangcn（ https://github.com/clangcn/everyday-update-cn-isp-ip.git ）项目代码和思路，通过多进程并行处理技术，对信息检索和数据写入过程进行优化，极大提高 ISP 运营商分项地址数据生成效率，减少运行时间。在提供 IPv4 数据获取的同时，增加 IPv6 数据获取功能，以及基于 CIDR 网段聚合算法的 IPv4/6 CIDR 地址数据的生成功能。
 
 本产品同时也是本人单进程的 lzispcn 项目（ https://github.com/larsonzh/lzispcn.git ）的多进程版本。
 
-脚本在 Linux 环境下使用，运行平台包括：Ubuntu，Deepin，ASUSWRT-Merlin，OpenWrt，......
+脚本在 Linux 环境下使用，运行平台包括：Ubuntu，CentOS, Deepin，ASUSWRT-Merlin，OpenWrt，......
 
 # 功能
 <ul><li>从 APNIC 下载最新 IP 信息数据。</li>
@@ -42,6 +42,12 @@ Multi process parallel acquisition tool for IP address data of ISP network opera
   sudo apt update
   sudo apt install whois
 ```
+<li>CentOS</li>
+
+```markdown
+  sudo yum update
+  sudo yum install whois
+```
 <li>ASUSWRT-Merlin</li>
 
 ```markdown
@@ -65,11 +71,11 @@ Multi process parallel acquisition tool for IP address data of ISP network opera
 
 **二、安装项目脚本**
 
-<ul>1.下载本工具的软件压缩包 lzsipcn-[version ID].tgz（例如：lzispro-v1.0.1.tgz）。</ul>
+<ul>1.下载本工具的软件压缩包 lzsipcn-[version ID].tgz（例如：lzispro-v1.0.2.tgz）。</ul>
 
 <ul>2.将压缩包复制到设备的任意有读写权限的目录。</ul>
 
-<ul>3.在 Shell 终端中使用解压缩命令在当前目录中解压缩，生成 lzispro-[version ID] 目录（例如：lzispro-v1.0.1），其中包含一个 lzispro 目录，是脚本所在目录。</ul>
+<ul>3.在 Shell 终端中使用解压缩命令在当前目录中解压缩，生成 lzispro-[version ID] 目录（例如：lzispro-v1.0.2），其中包含一个 lzispro 目录，是脚本所在目录。</ul>
 <ul>
 
 ```markdown
@@ -77,7 +83,7 @@ Multi process parallel acquisition tool for IP address data of ISP network opera
 ```
 </ul>
 
-<ul>4.将 lzispro 目录整体复制粘贴到设备中希望放置本工具的位置。</ul>
+<ul>4.将 lzispro 目录整体复制粘贴到设备中有读写运行权限的目录位置存储。</ul>
 
 <ul>5.在 lzispro 目录中，lzispro.sh 为本工具的可执行脚本，若读写运行权限不足，手工赋予 755 以上即可。</ul>
 
@@ -87,22 +93,18 @@ Multi process parallel acquisition tool for IP address data of ISP network opera
 
 ```markdown
   假设当前位于 lzispro 目录
-  Ubuntu | Deepin | ...
-  启动脚本    bash ./lzispro.sh
-  强制解锁    bash ./lzispro.sh unlock
-  ASUSWRT-Merlin | OpenWrt | ...
   启动脚本         ./lzispro.sh
-  强制解锁         ./lzispro.sh unlock
+  强制停止         ./lzispro.sh stop
 ```
 </ul>
-<ul>1.通过 Shell 终端启动脚本后，在操作过程中不要关闭终端窗口，这可能导致程序执行过程意外中断。</ul>
-<ul>2.主脚本在系统中只能有一个实例进程运行。若上次运行过程中非正常退出，再次运行如果提示有另一个实例正在运行，在确认系统中本脚本确实没有实例正在运行后，可以执行「强制解锁」命令或重启系统，然后再执行「启动脚本」命令。由于采用多进程并行处理机制，一旦工作过程被打断，或强制关闭后，为避免残余进程还在后台运行，请执行一次「强制解锁」命令，从而清理脚本非正常退出后遗留的临时数据，同时关闭垃圾进程</ul>
+<ul>1.通过 Shell 终端启动脚本后，在操作过程中不要关闭终端窗口，这会导致程序执行过程意外中断。</ul>
+<ul>2.主脚本在系统中只能有一个实例进程运行。若上次运行过程中非正常退出，再次运行如果提示有另一个实例正在运行，在确认系统中本脚本确实没有实例正在运行后，可以执行「强制停止」命令或重启系统，然后再执行「启动脚本」命令。由于采用多进程并行处理机制，一旦工作过程被打断，或强制关闭后，为避免残余进程还在后台运行，请执行一次「强制停止」命令，以清理脚本非正常退出后遗留的临时数据，同时关闭垃圾进程</ul>
 <ul>3.进行 ISP 运营商分项数据归类时，脚本需要通过互联网访问 APNIC 做海量信息查询，可能要耗费一、两个小时以上时间。切勿中断此执行过程，并耐心等候。</ul>
 <ul>4.若要减少 ISP 运营商分项数据归类处理时间，可根据设备硬件平台性能，在不影响设备正常使用的前提下，酌情并适可而止的修改查询 ISP 信息归类数据的「并行查询处理多进程数量 PARA_QUERY_PROC_NUM」参数，取值越大，效率越高，用时越短。例如，从缺省的 4 进程，提高到 8 进程，16 进程，甚至 64 进程，效率可能获得翻倍，或数倍提高，大大降低程序运行时间，改善应用体验。</ul>
 
 **四、目录结构**
 
-<ul>在项目目录 lzispro 下，脚本为获取和生成的每类文本形式的数据设立独立的存储目录，在程序执行完成后，从这些目录中可获取所需数据。</ul>
+<ul>在项目目录 lzispro 下，脚本为获取和生成的每类文本形式的数据设有独立的存储目录，在程序执行完成后，从这些目录中可获取所需数据。用户也可以根据需要，在脚本参数配置时修改最终输出的目录名称、路径，以及具体的数据文件名称。</ul>
 <ul>
 
 ```markdown
@@ -123,7 +125,7 @@ Multi process parallel acquisition tool for IP address data of ISP network opera
 
 <ul>lzispro.sh 脚本是本工具的主程序，可用文本编辑工具打开查看、修改其中的内容。</ul>
     
-<ul>该代码的前部分有供用户修改的参数变量，可根据内部注释修改。</ul>
+<ul>该代码的前部分有供用户修改的参数变量，可参考内部注释修改。</ul>
 <ul>
 
 ```markdown

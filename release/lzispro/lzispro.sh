@@ -1,5 +1,5 @@
 #!/bin/sh
-# lzispro.sh v1.0.1
+# lzispro.sh v1.0.2
 # By LZ 妙妙呜 (larsonzhang@gmail.com)
 
 # Multi process parallel acquisition tool for IP address data of ISP network operators in China
@@ -14,12 +14,8 @@
 # 4.Generate compressed IPv4/6 CIDR format address data through the CIDR aggregation algorithm.
 
 # Script Command (e.g., in the lzispro Directory)
-# Ubuntu | Deepin | ...
-# Launch Script        bash ./lzispro.sh
-# Forced Unlocking     bash ./lzispro.sh unlock
-# ASUSWRT-Merlin | OpenWrt | ...
-# Launch Script             ./lzispro.sh
-# Forced Unlocking          ./lzispro.sh unlock
+# Launch Script          ./lzispro.sh
+# Forced Stop            ./lzispro.sh stop
 
 # Warning: 
 # 1.After the script is launched through the Shell terminal, do not close the terminal window during operation, as it may
@@ -45,6 +41,9 @@ PATH_CIDR="${PATH_CURRENT}/cidr"
 PATH_IPV6="${PATH_CURRENT}/ipv6"
 PATH_IPV6_CIDR="${PATH_CURRENT}/ipv6_cidr"
 PATH_TMP="${PATH_CURRENT}/tmp"
+
+# Project script name
+PROJECT_SCRIPT="${0##*/}"
 
 # Obtain ISP attribution data script
 ISP_DATA_SCRIPT="lzispdata.sh"
@@ -140,15 +139,10 @@ PROGRESS_BAR="0"
 SYSLOG=""
 #SYSLOG="/tmp/syslog.log"
 
-# Synchronization Lock File Path & Name
-PATH_LOCK="/var/lock"
-LOCK_FILE="lzispro.lock"
-LOCK_FILE_ID="323"
+# Forced Stop Command Word
+FORCED_STOP_CMD="stop"
 
-# Forced Unlocking Command Word
-UNLOCK_CMD="unlock"
-
-LZ_VERSION="v1.0.1"
+LZ_VERSION="v1.0.2"
 
 # ------------------ Function -------------------
 
@@ -170,35 +164,16 @@ lz_echo() {
     fi
 }
 
-set_lock() {
-    # Program Process Synchronization Protection
-    # 0--Enable (Default), Other--Disable
-    [ "${LOCK_ENABLE:="0"}" != "0" ] && return "0"
-    if [ ! -d "${PATH_LOCK:="/var/lock"}" ]; then
-        mkdir -p "${PATH_LOCK}"
-        chmod 777 "${PATH_LOCK}"
-        if [ ! -d "${PATH_LOCK}" ]; then
-            LOCK_ENABLE="1"
-            return "1"
-        fi
-    fi
-    ps | awk '!/awk/ && !/grep/' | grep -qw 'bash' \
-        && ! ps | awk '$1 == "'"$$"'" && !/awk/ && !/grep/' | grep -qw 'bash' \
-        && ! ps a 2> /dev/null | awk '$1 == "'"$$"'" && !/awk/ && !/grep/' | grep -qw 'bash' \
-        && LOCK_FILE_ID="9"
-    eval "exec ${LOCK_FILE_ID:="333"}<>${PATH_LOCK}/${LOCK_FILE:="lzispro.lock"}"
-    if ! flock -xn "${LOCK_FILE_ID}"; then
+proc_sync() {
+    if ! ps a 2> /dev/null | awk '$0 ~ "'"${PROJECT_SCRIPT}"'" && !/awk/ {if ($1 != "'"$$"'") exit(1)}'; then
         lz_echo "Another instance is already running."
-        LOCK_ENABLE="1"
+        return "1"
+    fi
+    if ! ps | awk '$0 ~ "'"${PROJECT_SCRIPT}"'" && !/awk/ {if ($1 != "'"$$"'") exit(1)}'; then
+        lz_echo "Another instance is already running."
         return "1"
     fi
     return "0"
-}
-
-unset_lock() {
-    [ "${LOCK_ENABLE:="0"}" = "0" ] && [ -f "${PATH_LOCK:="/var/lock"}/${LOCK_FILE:="lzispro.lock"}" ] \
-        && flock -u "${LOCK_FILE_ID:="333"}" 2> /dev/null \
-        && { eval "exec ${LOCK_FILE_ID}<&-"; eval "exec ${LOCK_FILE_ID}>&-"; }
 }
 
 remove_div_data() {
@@ -212,6 +187,23 @@ remove_div_data() {
     done
 }
 
+remove_tmp_data() {
+    local index="0" fname="" cidr_fname="" ipv6_fname="" cidr_ipv6_fname=""
+    until [ "${index}" -gt "10" ]
+    do
+        eval fname="\${ISP_DATA_${index}}"
+        eval cidr_fname="\${ISP_CIDR_DATA_${index}}"
+        eval ipv6_fname="\${ISP_IPV6_DATA_${index}}"
+        eval cidr_ipv6_fname="\${ISP_IPV6_CIDR_DATA_${index}}"
+        [ -f "${PATH_TMP}/${fname%.*}.dat" ] && rm -f "${PATH_TMP}/${fname%.*}.dat"
+        [ -f "${PATH_TMP}/${cidr_fname%.*}.dat" ] && rm -f "${PATH_TMP}/${cidr_fname%.*}.dat"
+        [ -f "${PATH_TMP}/${ipv6_fname%.*}.dat" ] && rm -f "${PATH_TMP}/${ipv6_fname%.*}.dat"
+        [ -f "${PATH_TMP}/${cidr_ipv6_fname%.*}.dat" ] && rm -f "${PATH_TMP}/${cidr_ipv6_fname%.*}.dat"
+        index="$(( index + 1 ))"
+    done
+    [ -f "${PATH_TMP}/${APNIC_IP_INFO%.*}.dat" ] && rm -f "${PATH_TMP}/${APNIC_IP_INFO%.*}.dat"
+}
+
 kill_child_processes() {
     ps a 2> /dev/null | awk '$0 ~ "'"${ISP_DATA_SCRIPT}"'" && !/awk/ {system("kill -9 "$1" > /dev/null 2>&1")}'
     ps | awk '$0 ~ "'"${ISP_DATA_SCRIPT}"'" && !/awk/ {system("kill -9 "$1" > /dev/null 2>&1")}'
@@ -219,15 +211,19 @@ kill_child_processes() {
     remove_div_data "ipv6"
 }
 
-forced_unlock() {
-    [ "$( awk 'BEGIN{print tolower("'"${1}"'")}' )" != "${UNLOCK_CMD:="unlock"}" ] && return "1"
+kill_father_processes() {
+    ps a 2> /dev/null | awk '$0 ~ "'"${PROJECT_SCRIPT}"'" && $1 != "'"$$"'" && !/awk/ {system("kill -9 "$1" > /dev/null 2>&1")}'
+    ps | awk '$0 ~ "'"${PROJECT_SCRIPT}"'" && $1 != "'"$$"'" && !/awk/ {system("kill -9 "$1" > /dev/null 2>&1")}'
+    ps a 2> /dev/null | awk '$0 ~ "'"${APNIC_IP_INFO%.*}.dat"'" && !/awk/ {system("kill -9 "$1" > /dev/null 2>&1")}'
+    ps | awk '$0 ~ "'"${APNIC_IP_INFO%.*}.dat"'" && !/awk/ {system("kill -9 "$1" > /dev/null 2>&1")}'
+    remove_tmp_data
+}
+
+forced_stop() {
+    [ "$( awk 'BEGIN{print tolower("'"${1}"'")}' )" != "${FORCED_STOP_CMD:="stop"}" ] && return "1"
+    kill_father_processes
     kill_child_processes
-    if [ -f "${PATH_LOCK:="/var/lock"}/${LOCK_FILE:="lzispro.lock"}" ]; then
-        rm -f "${PATH_LOCK}/${LOCK_FILE}"
-        lz_echo "Forced Unlocking OK"
-    else
-        lz_echo "No Locking"
-    fi
+    lz_echo "Forced Stop OK"
     return "0"
 }
 
@@ -328,7 +324,6 @@ init_project_dir() {
         lz_echo "Game Over !!!"
         return "1"
     }
-    [ -f "${PATH_TMP}/${APNIC_IP_INFO%.*}.dat" ] && rm -f "${PATH_TMP}/${APNIC_IP_INFO%.*}.dat"
     local index="0" fname="" cidr_fname="" ipv6_fname="" cidr_ipv6_fname=""
     until [ "${index}" -gt "10" ]
     do
@@ -406,12 +401,9 @@ init_project_dir() {
             lz_echo "cann't have the same name. Game Over !!!"
             return "1"
         }
-        [ -f "${PATH_TMP}/${fname%.*}.dat" ] && rm -f "${PATH_TMP}/${fname%.*}.dat"
-        [ -f "${PATH_TMP}/${cidr_fname%.*}.dat" ] && rm -f "${PATH_TMP}/${cidr_fname%.*}.dat"
-        [ -f "${PATH_TMP}/${ipv6_fname%.*}.dat" ] && rm -f "${PATH_TMP}/${ipv6_fname%.*}.dat"
-        [ -f "${PATH_TMP}/${cidr_ipv6_fname%.*}.dat" ] && rm -f "${PATH_TMP}/${cidr_ipv6_fname%.*}.dat"
         index="$(( index + 1 ))"
     done
+    kill_father_processes
     kill_child_processes
     return "0"
 }
@@ -427,8 +419,6 @@ export_env_var() {
     export PATH_TMP
     export WHOIS_HOST
     export RETRY_NUM
-    export PATH_LOCK
-    export LOCK_FILE
 }
 
 init_isp_data_script() {
@@ -584,20 +574,9 @@ check_isp_data() {
 }
 
 get_shell_cmd() {
-    local sh_str=""
-    if ps | awk '$1 == "'"$$"'" && !/awk/' | grep -qw 'bash'; then
-        sh_str="bash"
-        ps | awk '$1 == "'"$$"'" && !/awk/' | grep -qEw '[\/]bin[\/]bash' && sh_str="/bin/bash"
-    elif ps a 2> /dev/null | awk '$1 == "'"$$"'" && !/awk/' | grep -qw 'bash'; then
-        sh_str="bash"
-        ps a 2> /dev/null | awk '$1 == "'"$$"'" && !/awk/' | grep -qEw '[\/]bin[\/]bash' && sh_str="/bin/bash"
-    elif ps | awk '$1 == "'"$$"'" && !/awk/' | grep -qw 'sh'; then
-        sh_str="sh"
-        ps | awk '$1 == "'"$$"'" && !/awk/' | grep -qEw '[\/]bin[\/]sh' && sh_str="/bin/sh"
-    elif ps a 2> /dev/null | awk '$1 == "'"$$"'" && !/awk/' | grep -qw 'sh'; then
-        sh_str="sh"
-        ps a 2> /dev/null | awk '$1 == "'"$$"'" && !/awk/' | grep -qEw '[\/]bin[\/]sh' && sh_str="/bin/sh"
-    fi
+    local sh_str="$( ps a 2> /dev/null | awk '$1 == "'"$$"'" && !/awk/ {print $5; exit}' )"
+    [ -z "${sh_str}" ] && sh_str="$( ps | awk '$1 == "'"$$"'" && !/awk/ {print $5; exit}' )"
+    ! echo "${sh_str##*/}" | grep -qEi '^sh$|^bash$|^ash$|^dash$|^csh$|^bsh$|^ksh$|^tcsh$|^zsh$|^fish$' && sh_str=""
     echo "${sh_str}"
 }
 
@@ -972,16 +951,12 @@ get_file_time_stamp() {
 show_header() {
     BEGIN_TIME="$( date +%s -d "$( date +"%F %T" )" )"
     lz_echo
-    lz_echo "LZ ISPRO ${LZ_VERSION:="v1.0.1"} script commands start......"
+    lz_echo "LZ ISPRO ${LZ_VERSION:="v1.0.2"} script commands start......"
     lz_echo "By LZ (larsonzhang@gmail.com)"
     lz_echo "---------------------------------------------"
-    lz_echo "Command (in the ${PATH_CURRENT})"
-    lz_echo "Ubuntu | Deepin | ..."
-    lz_echo "Launch Script      bash ./lzispro.sh"
-    lz_echo "Forced Unlocking   bash ./lzispro.sh unlock"
-    lz_echo "ASUSWRT-Merlin | OpenWrt | ..."
-    lz_echo "Launch Script           ./lzispro.sh"
-    lz_echo "Forced Unlocking        ./lzispro.sh unlock"
+    lz_echo "Command in the ${PATH_CURRENT}"
+    lz_echo "Launch Script          ./lzispro.sh"
+    lz_echo "Forced Stop            ./lzispro.sh stop"
     lz_echo "---------------------------------------------"
 }
 
@@ -1020,8 +995,8 @@ show_tail() {
 show_header
 while true
 do
-    forced_unlock "${1}" && break
-    set_lock || break
+    forced_stop "${1}" && break
+    proc_sync || break
     check_module "whois" || break
     check_module "wget" || break
     init_project_dir || break
@@ -1043,7 +1018,6 @@ do
     show_data_path
     break
 done
-unset_lock
 show_tail
 
 exit "0"
