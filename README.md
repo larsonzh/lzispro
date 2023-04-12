@@ -170,6 +170,6 @@ lzispro.sh 脚本是本工具的主程序，可用文本编辑工具打开查看
 
 ![lzispro_openwrt_64](https://user-images.githubusercontent.com/73221087/231570822-a8cc1445-5396-4dd6-8b62-a3250912541f.png)
 
-能跑哈，再折腾下，128 个进程，行不？
+能跑哈，再折腾下，128 个进程，行不？3 分钟半，大部分时间耗在 CIDR 聚合计算上，ISP 数据生成用时很少，若放到服务器上，效果更好。
 
 ![lzispro_openwrt_128](https://user-images.githubusercontent.com/73221087/231569234-b2c92800-8afb-4ada-9211-7f64176aa280.png)
