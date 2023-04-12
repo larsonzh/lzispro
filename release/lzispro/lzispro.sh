@@ -570,7 +570,7 @@ check_isp_data() {
 get_shell_cmd() {
     local sh_str="$( ps a 2> /dev/null | awk '$1 == "'"$$"'" && !/awk/ {print $5; exit}' )"
     [ -z "${sh_str}" ] && sh_str="$( ps | awk '$1 == "'"$$"'" && !/awk/ {print $5; exit}' )"
-    ! echo "${sh_str##*/}" | grep -qEi '^sh$|^bash$|^ash$|^dash$|^csh$|^bsh$|^ksh$|^tcsh$|^zsh$|^fish$' && sh_str=""
+    ! echo "${sh_str##*/}" | grep -qEi 'sh$' && sh_str=""
     echo "${sh_str}"
 }
 
