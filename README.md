@@ -13,7 +13,7 @@ Multi process parallel acquisition tool for IP address data of ISP network opera
 
 脚本在 Linux 环境下使用，运行平台包括：Ubuntu，CentOS，Deepin，ASUSWRT-Merlin，OpenWrt，......
 
-适用的 Shell 类型：sh，bash，ash
+适用的 Shell 类型：sh，ash，dash，bash
 
 # 功能
 - 从 APNIC 下载最新 IP 信息数据。
