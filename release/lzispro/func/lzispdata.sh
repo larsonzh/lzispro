@@ -70,19 +70,19 @@ get_isp_details() {
 write_isp_data_buf() {
     # CNC
     # CHINAUNICOM
-    echo "${1}" | grep -qEi 'CNC|UNICOM' && { DATA_BUF_2="$( echo -e "${DATA_BUF_2}\n${2}" )"; return; }
+    echo "${1}" | grep -qEi 'CNC|UNICOM' && { DATA_BUF_2="${DATA_BUF_2}n${2}"; return; }
     # CHINATELECOM
-    echo "${1}" | grep -qEi 'CHINANET|TELECOM|BJTEL' && { DATA_BUF_1="$( echo -e "${DATA_BUF_1}\n${2}" )"; return; }
+    echo "${1}" | grep -qEi 'CHINANET|TELECOM|BJTEL' && { DATA_BUF_1="${DATA_BUF_1}n${2}"; return; }
     # CHINAMOBILE
-    echo "${1}" | grep -qEi 'CMCC|CMNET' && { DATA_BUF_3="$( echo -e "${DATA_BUF_3}\n${2}" )"; return; }
+    echo "${1}" | grep -qEi 'CMCC|CMNET' && { DATA_BUF_3="${DATA_BUF_3}n${2}"; return; }
     # CRTC
-    echo "${1}" | grep -qEi 'CRTC' && { DATA_BUF_4="$( echo -e "${DATA_BUF_4}\n${2}" )"; return; }
+    echo "${1}" | grep -qEi 'CRTC' && { DATA_BUF_4="${DATA_BUF_4}n${2}"; return; }
     # CERNET
-    echo "${1}" | grep -qEi 'CERNET' && { DATA_BUF_5="$( echo -e "${DATA_BUF_5}\n${2}" )"; return; }
+    echo "${1}" | grep -qEi 'CERNET' && { DATA_BUF_5="${DATA_BUF_5}n${2}"; return; }
     # GWBN
-    echo "${1}" | grep -qEi 'GWBN|GXBL|DXTNET|BITNET|ZBTNET|drpeng|btte' && { DATA_BUF_6="$( echo -e "${DATA_BUF_6}\n${2}" )"; return; }
+    echo "${1}" | grep -qEi 'GWBN|GXBL|DXTNET|BITNET|ZBTNET|drpeng|btte' && { DATA_BUF_6="${DATA_BUF_6}n${2}"; return; }
     # OTHER
-    DATA_BUF_7="$( echo -e "${DATA_BUF_7}\n${2}" )"
+    DATA_BUF_7="${DATA_BUF_7}n${2}"
 }
 
 write_isp_data_file() {
@@ -92,8 +92,10 @@ write_isp_data_file() {
     do
         eval buf="\${DATA_BUF_${index}}"
         eval fname="${PATH_DST}/\${${prefix}${index}}"
-        [ -n "${buf}" ] && buf="$( echo "${buf}" | sed '/^[ ]*$/d' )"
-        [ -n "${buf}" ] && echo "${buf}" >> "${fname%.*}.dat_${SRC_INDEX}"
+        if [ -n "${buf}" ]; then
+            buf="$( echo "${buf/n/}" | sed -e 's/n/\n/g' -e '/^[ ]*$/d' )"
+            [ -n "${buf}" ] && echo "${buf}" >> "${fname%.*}.dat_${SRC_INDEX}"
+        fi
         index="$(( index + 1 ))"
     done
     init_isp_data_buf
