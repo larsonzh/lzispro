@@ -26,7 +26,7 @@ Multi process parallel acquisition tool for IP address data of ISP network opera
 
 - 中国区 IPv4/6 地址数据：含 4 个地区分项和 7 个 ISP 运营商分项
 
-    - 大陆地区
+    * 大陆地区
 
        - 中国电信
 
@@ -42,11 +42,11 @@ Multi process parallel acquisition tool for IP address data of ISP network opera
 
        - 中国大陆其他
 
-  - 香港地区
+  * 香港地区
 
-  - 澳门地区
+  * 澳门地区
 
-  - 台湾地区
+  * 台湾地区
 
 # 安装及运行
 
@@ -142,7 +142,7 @@ Multi process parallel acquisition tool for IP address data of ISP network opera
 
 lzispro.sh 脚本是本工具的主程序，可用文本编辑工具打开查看、修改其中的内容。
     
-该代码的前部分有供用户修改的参数变量，可参考内部注释修改。
+该代码的前部分有供用户自定义的变量参数，具体使用可参考内部注释。
 
 ```markdown
   项目目录
@@ -161,10 +161,11 @@ lzispro.sh 脚本是本工具的主程序，可用文本编辑工具打开查看
 
 # 运行效果图
 
-华硕 GT-AX6000 梅林固件路由器，四核心 ARM CPU，主频 2.0 MHz，脚本「并行查询处理多进程数量」参数设置为：PARA_QUERY_PROC_NUM="64"。实际用时从单进程的两个多小时减少到 10 分钟以下。并行查询处理多进程同时运行时，路由器 CPU 四个内核的资源占用率均在 80~90% 之间，路由器网络内外之间也均保持畅通。
+华硕 GT-AX6000 梅林固件路由器，四核心 ARM CPU，主频 2.0 MHz，脚本「并行查询处理多进程数量」参数设置为：PARA_QUERY_PROC_NUM="48"。实际用时从单进程的两个多小时减少到 10 分钟以下。并行查询处理多进程同时运行时，CPU 四个内核的资源占用率均在 60 ~ 70 % 之间，路由器网络内外之间均保持畅通。
 
-![lzispro](https://user-images.githubusercontent.com/73221087/230725155-b2e685d1-d8ba-4f44-8edc-0cd77a92ecae.jpg)
+![lzispro_asuswrt-merlin](https://user-images.githubusercontent.com/73221087/231459621-1431b97e-6ac3-4703-8812-18d36805d6ef.jpg)
 
-OpenWrt 跑疯了，不可思议！
+使用 64 个查询处理进程，OpenWrt 跑疯了，不可思议！
 
 ![lzispro_op](https://user-images.githubusercontent.com/73221087/230794508-b896d8b1-ff2b-47ea-8505-ff689c0648ff.png)
+
