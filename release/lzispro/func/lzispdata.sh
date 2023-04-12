@@ -92,7 +92,7 @@ write_isp_data_file() {
     do
         eval buf="\${DATA_BUF_${index}}"
         eval fname="${PATH_DST}/\${${prefix}${index}}"
-        [ -n "${buf}" ] && echo "${buf/n/}" | sed 's/n/\n/g' >> "${fname%.*}.dat_${SRC_INDEX}"
+        [ -n "${buf}" ] && echo "${buf}" | sed -e 's/^[n]//g' -e 's/[n]/\n/g' >> "${fname%.*}.dat_${SRC_INDEX}"
         index="$(( index + 1 ))"
     done
     init_isp_data_buf
