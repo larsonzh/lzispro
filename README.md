@@ -167,5 +167,4 @@ lzispro.sh 脚本是本工具的主程序，可用文本编辑工具打开查看
 
 使用 64 个查询处理进程，OpenWrt 跑疯了，不可思议！
 
-![lzispro_op](https://user-images.githubusercontent.com/73221087/230794508-b896d8b1-ff2b-47ea-8505-ff689c0648ff.png)
-
+![lzispro_openwrt](https://user-images.githubusercontent.com/73221087/231563294-43acb0c7-0917-4061-838f-c139b0285c0f.png)
