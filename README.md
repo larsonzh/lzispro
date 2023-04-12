@@ -11,7 +11,7 @@ Multi process parallel acquisition tool for IP address data of ISP network opera
 
 本产品同时也是本人单进程的 lzispcn 项目（ https://github.com/larsonzh/lzispcn.git ）的多进程版本。
 
-脚本在 Linux 环境下使用，运行平台包括：Ubuntu，CentOS, Deepin，ASUSWRT-Merlin，OpenWrt，......
+脚本在 Linux 环境下使用，运行平台包括：Ubuntu，CentOS，Deepin，ASUSWRT-Merlin，OpenWrt，......
 
 # 功能
 <ul><li>从 APNIC 下载最新 IP 信息数据。</li>
