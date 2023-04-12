@@ -13,24 +13,39 @@ Multi process parallel acquisition tool for IP address data of ISP network opera
 
 脚本在 Linux 环境下使用，运行平台包括：Ubuntu，CentOS，Deepin，ASUSWRT-Merlin，OpenWrt，......
 
-脚本支持的 Shell 类型：sh，bash，ash
+适用的 Shell 类型：sh，bash，ash
 
 # 功能
 - 从 APNIC 下载最新 IP 信息数据。
+
 - 从 APINC IP 信息数据中抽取出最新、最完整的中国大陆及港澳台地区所有 IPv4/6 原始地址数据。
+
 - 采用多进程并行处理方式，向 APNIC 逐条查询中国大陆地区的 IPv4/6 原始地址数据，得到归属信息，生成能够包含中国大陆地区所有 IPv4/6 地址的 ISP 运营商分项数据。
+
 - 通过 CIDR 聚合算法生成压缩过的 IPv4/6 CIDR 格式地址数据。
+
 - 中国区 IPv4/6 地址数据：含 4 个地区分项和 7 个 ISP 运营商分项
+
     - 大陆地区
+
        - 中国电信
+
        - 中国联通/网通
+
        - 中国移动
+
        - 中国铁通
+
        - 中国教育网
+ 
        - 长城宽带/鹏博士
+
        - 中国大陆其他
+
   - 香港地区
+
   - 澳门地区
+
   - 台湾地区
 
 # 安装及运行
@@ -128,7 +143,6 @@ Multi process parallel acquisition tool for IP address data of ISP network opera
 lzispro.sh 脚本是本工具的主程序，可用文本编辑工具打开查看、修改其中的内容。
     
 该代码的前部分有供用户修改的参数变量，可参考内部注释修改。
-
 
 ```markdown
   项目目录
