@@ -128,7 +128,7 @@ Multi process parallel acquisition tool for IP address data of ISP network opera
 ```markdown
   [lzispro]
     [func]
-      lzispdata.sh  -- 子进程脚本
+      lzispdata.sh  -- ISP 数据进程脚本
     [apnic]         -- APNIC 的 IP 信息数据
     [isp]           -- IPv4 原始地址数据
     [cidr]          -- IPv4 CIDR 地址数据

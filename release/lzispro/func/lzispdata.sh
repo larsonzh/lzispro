@@ -2,7 +2,7 @@
 # lzispdata.sh v1.0.2
 # By LZ 妙妙呜 (larsonzhang@gmail.com)
 
-# Obtain ISP attribution data script
+# ISP Data Process Script
 
 # $1--Internet Protocol Version (ipv4 or ipv6)
 # $2--Source Data File index number
