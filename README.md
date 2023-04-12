@@ -155,7 +155,8 @@ lzispro.sh 脚本是本工具的主程序，可用文本编辑工具打开查看
   ......
 ```
 
-# 卸载
+# 卸载![lzispro_openwrt_64](https://user-images.githubusercontent.com/73221087/231570740-27fc0967-b526-46e6-9ce2-c494e3ee0a00.png)
+
 
 直接删除 lzispro 目录。
 
@@ -167,4 +168,8 @@ lzispro.sh 脚本是本工具的主程序，可用文本编辑工具打开查看
 
 使用 64 个查询处理进程，OpenWrt 跑疯了，不可思议！
 
-![lzispro_openwrt](https://user-images.githubusercontent.com/73221087/231563294-43acb0c7-0917-4061-838f-c139b0285c0f.png)
+![lzispro_openwrt_64](https://user-images.githubusercontent.com/73221087/231570822-a8cc1445-5396-4dd6-8b62-a3250912541f.png)
+
+既然能么能跑，再折腾下，128 个查询线程，看看效果如何。。。。。。
+
+![lzispro_openwrt_128](https://user-images.githubusercontent.com/73221087/231569234-b2c92800-8afb-4ada-9211-7f64176aa280.png)
