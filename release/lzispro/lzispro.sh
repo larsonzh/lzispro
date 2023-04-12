@@ -152,17 +152,9 @@ lz_date() { date +"%F %T"; }
 
 lz_echo() {
     if [ -n "${SYSLOG}" ] && [ -d "${SYSLOG%/*}" ]; then
-        if [ "${1%% *}" = "-e" ]; then
-            echo -e "$( lz_date ) [$$]:" "${1#* }" | tee -ai "${SYSLOG}" 2> /dev/null
-        else
-            echo "$( lz_date ) [$$]:" "${1}" | tee -ai "${SYSLOG}" 2> /dev/null
-        fi
+        echo "$( lz_date ) [$$]:" "${1}" | tee -ai "${SYSLOG}" 2> /dev/null
     else
-        if [ "${1%% *}" = "-e" ]; then
-            echo -e "$( lz_date ) [$$]:" "${1#* }"
-        else
-            echo "$( lz_date ) [$$]:" "${1}"
-        fi
+        echo "$( lz_date ) [$$]:" "${1}"
     fi
 }
 
