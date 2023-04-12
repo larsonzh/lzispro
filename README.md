@@ -166,10 +166,10 @@ lzispro.sh 脚本是本工具的主程序，可用文本编辑工具打开查看
 
 ![lzispro_asuswrt-merlin](https://user-images.githubusercontent.com/73221087/231459621-1431b97e-6ac3-4703-8812-18d36805d6ef.jpg)
 
-使用 64 个查询处理进程，OpenWrt 跑疯了，不可思议！
+使用 64 个查询处理进程，OpenWrt 跑疯了。这是在 VirtualBox 虚拟机里的软路由，主机系统 Windows 11，11 代 U 的笔记本电脑，无线连接路由器，平时看不出有啥性能，不可思议！
 
 ![lzispro_openwrt_64](https://user-images.githubusercontent.com/73221087/231570822-a8cc1445-5396-4dd6-8b62-a3250912541f.png)
 
-既然能么能跑，再折腾下，128 个查询线程，看看效果如何。。。。。。
+能跑哈，再折腾下，128 个进程，行不？
 
 ![lzispro_openwrt_128](https://user-images.githubusercontent.com/73221087/231569234-b2c92800-8afb-4ada-9211-7f64176aa280.png)
