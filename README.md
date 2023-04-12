@@ -155,8 +155,7 @@ lzispro.sh 脚本是本工具的主程序，可用文本编辑工具打开查看
   ......
 ```
 
-# 卸载![lzispro_openwrt_64](https://user-images.githubusercontent.com/73221087/231570740-27fc0967-b526-46e6-9ce2-c494e3ee0a00.png)
-
+# 卸载
 
 直接删除 lzispro 目录。
 
