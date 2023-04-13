@@ -47,7 +47,7 @@ PATH_TMP="${PATH_CURRENT}/tmp"
 # Project script full path file name
 PROJECT_SCRIPT="${0}"
 
-# ISP Data Process Script name
+# ISP Data Process Script full path file name
 ISP_DATA_SCRIPT="${PATH_FUNC}/lzispdata.sh"
 
 # APNIC IP Information File Target Name
