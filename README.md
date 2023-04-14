@@ -3,7 +3,7 @@ Multi process parallel acquisition tool for IP address data of ISP network opera
 
 中国区 ISP 网络运营商 IP 地址数据多进程并行处理批量获取工具
 
-*做个主机多进程性能测试工具挺不错。*
+*呵呵，做个主机多进程网络性能测试工具挺不错！*
 
 **v1.0.2**
 
