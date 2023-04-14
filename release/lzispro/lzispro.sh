@@ -44,11 +44,11 @@ PATH_IPV6="${PATH_CURRENT}/ipv6"
 PATH_IPV6_CIDR="${PATH_CURRENT}/ipv6_cidr"
 PATH_TMP="${PATH_CURRENT}/tmp"
 
-# Project script full path file name
-PROJECT_SCRIPT="${0}"
+# Project script name
+PROJECT_SCRIPT="${0##*/}"
 
-# ISP Data Process Script full path file name
-ISP_DATA_SCRIPT="${PATH_FUNC}/lzispdata.sh"
+# ISP Data Process Script name
+ISP_DATA_SCRIPT="lzispdata.sh"
 
 # APNIC IP Information File Target Name
 APNIC_IP_INFO="lz_apnic_ip_info.txt"
@@ -208,8 +208,8 @@ kill_child_processes() {
 kill_father_processes() {
     ps a 2> /dev/null | awk '$0 ~ "'"${PROJECT_SCRIPT}"'" && $1 != "'"$$"'" && !/awk/ {system("kill -9 "$1" > /dev/null 2>&1")}'
     ps | awk '$0 ~ "'"${PROJECT_SCRIPT}"'" && $1 != "'"$$"'" && !/awk/ {system("kill -9 "$1" > /dev/null 2>&1")}'
-    ps a 2> /dev/null | awk '$0 ~ "'"${PATH_TMP}/${APNIC_IP_INFO%.*}.dat"'" && !/awk/ {system("kill -9 "$1" > /dev/null 2>&1")}'
-    ps | awk '$0 ~ "'"${PATH_TMP}/${APNIC_IP_INFO%.*}.dat"'" && !/awk/ {system("kill -9 "$1" > /dev/null 2>&1")}'
+    ps a 2> /dev/null | awk '$0 ~ "'"${APNIC_IP_INFO%.*}.dat"'" && !/awk/ {system("kill -9 "$1" > /dev/null 2>&1")}'
+    ps | awk '$0 ~ "'"${APNIC_IP_INFO%.*}.dat"'" && !/awk/ {system("kill -9 "$1" > /dev/null 2>&1")}'
     remove_tmp_data
 }
 
@@ -239,8 +239,8 @@ init_project_dir() {
         lz_echo "Game Over !!!"
         return "1"
     }
-    [ ! -f "${ISP_DATA_SCRIPT}" ] && {
-        lz_echo "${ISP_DATA_SCRIPT} does not exist."
+    [ ! -f "${PATH_FUNC}/${ISP_DATA_SCRIPT}" ] && {
+        lz_echo "${PATH_FUNC}/${ISP_DATA_SCRIPT} does not exist."
         lz_echo "Game Over !!!"
     }
     [ "${PATH_APNIC}" = "${PATH_FUNC}" ] && {
@@ -416,12 +416,12 @@ export_env_var() {
 }
 
 init_isp_data_script() {
-    if ! grep -qEm 1 '^[ ]*#![\/]bin[\/]sh[ ]|^[ ]*#![\/]bin[\/]sh$' "${ISP_DATA_SCRIPT}"; then
-        lz_echo "${ISP_DATA_SCRIPT} file is damaged."
+    if ! grep -qEm 1 '^[ ]*#![\/]bin[\/]sh[ ]|^[ ]*#![\/]bin[\/]sh$' "${PATH_FUNC}/${ISP_DATA_SCRIPT}"; then
+        lz_echo "${PATH_FUNC}/${ISP_DATA_SCRIPT} file is damaged."
         lz_echo "Game Over !!!"
         return "1"
     fi
-    chmod +x "${ISP_DATA_SCRIPT}"
+    chmod +x "${PATH_FUNC}/${ISP_DATA_SCRIPT}"
     export_env_var
     return "0"
 }
@@ -580,7 +580,7 @@ isp_data_multi_proc() {
     until [ "${findex}" -ge "${PARA_QUERY_PROC_NUM}" ]
     do
         [ -f "${PATH_TMP}/${fname%.*}.dat_${findex}" ] && \
-            eval "${prefix_str}" "${ISP_DATA_SCRIPT}" "${1}" "${findex}" > /dev/null 2>&1 &
+            eval "${prefix_str}" "${PATH_FUNC}/${ISP_DATA_SCRIPT}" "${1}" "${findex}" > /dev/null 2>&1 &
         findex="$(( findex + 1 ))"
     done
     sleep 5s
@@ -607,9 +607,11 @@ get_isp_data() {
         lz_echo "Generating IPv6 ISP item data takes a long time."
         split_data_file "${PATH_TMP}/${ISP_IPV6_DATA_0%.*}.dat" || return "1"
     fi
-    local suffix_str=""
-    [ "${PARA_QUERY_PROC_NUM}" -gt "1" ] && suffix_str="es"
-    lz_echo "Use ${PARA_QUERY_PROC_NUM} process${suffix_str} for parallel query processing."
+    if [ "${PARA_QUERY_PROC_NUM}" -gt "1" ]; then
+        lz_echo "Use ${PARA_QUERY_PROC_NUM} processes for parallel query processing."
+    else
+        lz_echo "Use ${PARA_QUERY_PROC_NUM} query processing process."
+    fi
     lz_echo "Don't interrupt & Please wait......"
     [ "${PROGRESS_BAR}" = "0" ] && echo -n "."
     isp_data_multi_proc "${1}" || return "1"
