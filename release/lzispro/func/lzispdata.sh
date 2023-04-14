@@ -86,16 +86,17 @@ write_isp_data_buf() {
 }
 
 write_isp_data_file() {
-    local prefix="ISP_DATA_" index="1" buf="" fname=""
+    local prefix="ISP_DATA_" index="1" fname=""
     [ "${IPV_TYPE}" != "ipv4" ] && prefix="ISP_IPV6_DATA_"
     until [ "${index}" -gt "7" ]
     do
-        eval buf="\${DATA_BUF_${index}}"
         eval fname="${PATH_DST}/\${${prefix}${index}}"
-        [ -n "${buf}" ] && echo "${buf}" | sed -e 's/^n//g' -e 's/n/\n/g' >> "${fname%.*}.dat_${SRC_INDEX}"
+        eval [ -n "\${DATA_BUF_${index}}" ] && {
+            eval echo "\${DATA_BUF_${index}}" | sed -e 's/^n//g' -e 's/n/\n/g' >> "${fname%.*}.dat_${SRC_INDEX}"
+            eval DATA_BUF_"${index}"=""
+        }
         index="$(( index + 1 ))"
     done
-    init_isp_data_buf
 }
 
 failure_handling() {

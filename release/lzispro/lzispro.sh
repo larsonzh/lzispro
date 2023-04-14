@@ -580,7 +580,7 @@ isp_data_multi_proc() {
     until [ "${findex}" -ge "${PARA_QUERY_PROC_NUM}" ]
     do
         [ -f "${PATH_TMP}/${fname%.*}.dat_${findex}" ] && \
-            eval "${prefix_str}" "${PATH_FUNC}/${ISP_DATA_SCRIPT}" "${1}" "${findex}" > /dev/null 2>&1 &
+            "${prefix_str}" "${PATH_FUNC}/${ISP_DATA_SCRIPT}" "${1}" "${findex}" > /dev/null 2>&1 &
         findex="$(( findex + 1 ))"
     done
     sleep 5s
