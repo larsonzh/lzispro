@@ -50,7 +50,7 @@ Multi process parallel acquisition tool for IP address data of ISP network opera
 
 # 安装及运行
 
-# 一、安装支撑软件
+## 一、安装支撑软件
 
 脚本使用前最好将所在系统升级到最新版本，同时要在系统中联网安装脚本执行时必须依赖的软件模块：whois，wget
 
@@ -89,7 +89,7 @@ Multi process parallel acquisition tool for IP address data of ISP network opera
 
 其他 Linux 平台系统依此类推。
 
-# 二、安装项目脚本
+## 二、安装项目脚本
 
 1. 下载本工具的软件压缩包 lzsipcn-[version ID].tgz（例如：lzispro-v1.0.2.tgz）。
 
@@ -105,7 +105,7 @@ Multi process parallel acquisition tool for IP address data of ISP network opera
 
 5. 在 lzispro 目录中，lzispro.sh 为本工具的可执行脚本，若读写运行权限不足，手工赋予 755 以上即可。
 
-# 三、脚本运行命令
+## 三、脚本运行命令
 
 ```markdown
   假设当前位于 lzispro 目录
@@ -121,7 +121,7 @@ Multi process parallel acquisition tool for IP address data of ISP network opera
 
 4. 若要减少 ISP 运营商分项数据归类处理时间，可根据设备硬件平台性能，在不影响设备正常使用的前提下，酌情并适可而止的修改查询 ISP 信息归类数据的「并行查询处理多进程数量 PARA_QUERY_PROC_NUM」参数，取值越大，效率越高，用时越短。例如，从缺省的 4 进程，提高到 8 进程，16 进程，甚至 64 进程，效率可能获得翻倍，或数倍提高，大大降低程序运行时间，改善应用体验。
 
-# 四、目录结构
+## 四、目录结构
 
 在项目目录 lzispro 下，脚本为获取和生成的每类文本形式的数据设有独立的存储目录，在程序执行完成后，从这些目录中可获取所需数据。用户也可以根据需要，在脚本参数配置时修改最终输出的目录名称、路径，以及具体的数据文件名称。
 
@@ -138,7 +138,7 @@ Multi process parallel acquisition tool for IP address data of ISP network opera
     lzispro.sh      -- 主进程脚本
 ```
 
-# 五、参数配置
+## 五、参数配置
 
 lzispro.sh 脚本是本工具的主程序，可用文本编辑工具打开查看、修改其中的内容。
     
@@ -161,9 +161,13 @@ lzispro.sh 脚本是本工具的主程序，可用文本编辑工具打开查看
 
 # 效果图
 
+## ASUSWRT-Merlin
+
 华硕 GT-AX6000 梅林固件路由器，四核心 ARM CPU，主频 2.0 MHz，脚本「并行查询处理多进程数量」参数设置为：PARA_QUERY_PROC_NUM="48"。实际用时从单进程的两个多小时减少到 10 分钟以下。并行查询处理多进程同时运行时，CPU 四个内核的资源占用率均在 60 ~ 70 % 之间，路由器网络内外之间均保持畅通。
 
 ![lzispro_asuswrt-merlin](https://user-images.githubusercontent.com/73221087/231459621-1431b97e-6ac3-4703-8812-18d36805d6ef.jpg)
+
+## OpenWrt
 
 使用 64 个查询处理进程，OpenWrt 跑疯了。这是在 VirtualBox 虚拟机里的软路由，主机系统 Windows 11，11 代 U 的笔记本电脑，无线连接路由器，平时看不出有啥性能，不可思议！
 
@@ -172,3 +176,11 @@ lzispro.sh 脚本是本工具的主程序，可用文本编辑工具打开查看
 能跑哈，再折腾下，128 个进程，行不？3 分钟半，大部分时间耗在 CIDR 聚合计算上，ISP 数据生成用时很少，若放到服务器上，效果更好。
 
 ![lzispro_openwrt_128](https://user-images.githubusercontent.com/73221087/231569234-b2c92800-8afb-4ada-9211-7f64176aa280.png)
+
+## CentOS
+
+安装在 VirtualBox 虚拟机里的 Linux 服务器，配置 4 GB 内存和 4 个处理器。脚本「并行查询处理多进程数量」参数设置为：PARA_QUERY_PROC_NUM="128"，使用 128 个查询处理进程。
+
+2 分钟 8 秒，太快了！
+
+![lzispro_centos](https://user-images.githubusercontent.com/73221087/232160640-e03aa2bf-afa6-4a25-8bff-6f5e69c47ba8.jpg)
