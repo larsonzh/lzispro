@@ -487,11 +487,12 @@ split_data_file() {
     done
     local total="$( grep -Eic '^([0-9]{1,3}[\.]){3}[0-9]{1,3}([\/][0-9]{1,2}){0,1}$|^[\:0-9a-f]{0,4}[\:][\:0-9a-f]*([\/][0-9]{1,3}){0,1}$' "${1}" )"
     [ "${total}" = "0" ] && return "1"
-    [ "${total}" -le "${PARA_QUERY_PROC_NUM}" ] && {
+    if [ "${total}" -le "${PARA_QUERY_PROC_NUM}" ] || [ "${PARA_QUERY_PROC_NUM}" = "1" ]; then
         cp -p "${1}" "${1}_0"
         return "0"
-    }
+    fi
     local max_line_num="$(( total / PARA_QUERY_PROC_NUM ))"
+    [ "$(( total % PARA_QUERY_PROC_NUM ))" != "0" ] && max_line_num="$(( max_line_num + 1 ))"
     local bp="0" sp="0" nsp="$(( max_line_num * PARA_QUERY_PROC_NUM ))"
     findex="0"
     until [ "${findex}" -ge "${PARA_QUERY_PROC_NUM}" ]
