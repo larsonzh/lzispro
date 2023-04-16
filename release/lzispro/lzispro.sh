@@ -214,7 +214,8 @@ kill_father_processes() {
 }
 
 forced_stop() {
-    [ "$( awk 'BEGIN{print tolower("'"${1}"'")}' )" != "${FORCED_STOP_CMD:="stop"}" ] && return "1"
+    [ -z "${FORCED_STOP_CMD}" ] && FORCED_STOP_CMD="stop"
+    [ "$( awk 'BEGIN{print tolower("'"${1}"'")}' )" != "${FORCED_STOP_CMD}" ] && return "1"
     kill_father_processes
     kill_child_processes
     lz_echo "Forced Stop OK"
@@ -232,7 +233,7 @@ check_module() {
     return "1"
 }
 
-init_project_dir() {
+init_parameter() {
     chmod -R 775 "${PATH_CURRENT}"/*
     [ ! -d "${PATH_FUNC}" ] && {
         lz_echo "PATH_FUNC directory does not exist."
@@ -299,13 +300,15 @@ init_project_dir() {
         return "1"
     }
     [ ! -d "${PATH_APNIC}" ] && mkdir -p "${PATH_APNIC}"
-    if [ "${IPV4_DATA:="0"}" = "0" ] || [ "${IPV4_DATA}" = "1" ] || [ "${IPV4_DATA}" = "2" ]; then
+    [ ! "${IPV4_DATA}" ] && IPV4_DATA="0"
+    if [ "${IPV4_DATA}" = "0" ] || [ "${IPV4_DATA}" = "1" ] || [ "${IPV4_DATA}" = "2" ]; then
         [ ! -d "${PATH_ISP}" ] && mkdir -p "${PATH_ISP}"
     fi
     if [ "${IPV4_DATA}" = "0" ] || [ "${IPV4_DATA}" = "1" ]; then
         [ ! -d "${PATH_CIDR}" ] && mkdir -p "${PATH_CIDR}"
     fi
-    if [ "${IPV6_DATA:="2"}" = "0" ] || [ "${IPV6_DATA}" = "1" ] || [ "${IPV6_DATA}" = "2" ]; then
+    [ ! "${IPV6_DATA}" ] && IPV6_DATA="2"
+    if [ "${IPV6_DATA}" = "0" ] || [ "${IPV6_DATA}" = "1" ] || [ "${IPV6_DATA}" = "2" ]; then
         [ ! -d "${PATH_IPV6}" ] && mkdir -p "${PATH_IPV6}"
     fi
     if [ "${IPV6_DATA}" = "0" ] || [ "${IPV6_DATA}" = "1" ]; then
@@ -397,6 +400,21 @@ init_project_dir() {
         }
         index="$(( index + 1 ))"
     done
+    [ -z "${DOWNLOAD_URL}" ] && DOWNLOAD_URL="http://ftp.apnic.net/apnic/stats/apnic/delegated-apnic-latest"
+    [ -z "${WHOIS_HOST}" ] && WHOIS_HOST="whois.apnic.net"
+    ! echo "${PARA_QUERY_PROC_NUM}" | grep -qE '^[0-9][0-9]*$' && {
+        lz_echo "PARA_QUERY_PROC_NUM isn't an unsigned decimal integer."
+        lz_echo "Game Over !!!"
+        return "1"
+    }
+    PARA_QUERY_PROC_NUM="$( printf "%u\n" "${PARA_QUERY_PROC_NUM}" )"
+    ! echo "${RETRY_NUM}" | grep -qE '^[0-9][0-9]*$' && {
+        lz_echo "RETRY_NUM isn't an unsigned decimal integer."
+        lz_echo "Game Over !!!"
+        return "1"
+    }
+    RETRY_NUM="$( printf "%u\n" "${RETRY_NUM}" )"
+    [ -z "${PROGRESS_BAR}" ] && PROGRESS_BAR="0"
     kill_father_processes
     kill_child_processes
     return "0"
@@ -427,9 +445,8 @@ init_isp_data_script() {
 }
 
 get_apnic_info() {
-    [ -z "${DOWNLOAD_URL}" ] && DOWNLOAD_URL="http://ftp.apnic.net/apnic/stats/apnic/delegated-apnic-latest"
     local progress="--progress=bar:force"
-    [ "${PROGRESS_BAR:="0"}" != "0" ] && progress="-q"
+    [ "${PROGRESS_BAR}" != "0" ] && progress="-q"
     lz_echo "Exciting fetch......"
     eval wget -c "${progress}" --prefer-family=IPv4 --no-check-certificate "${DOWNLOAD_URL}" -O "${PATH_TMP}/${APNIC_IP_INFO%.*}.dat"
     if [ ! -f "${PATH_TMP}/${APNIC_IP_INFO%.*}.dat" ]; then
@@ -446,7 +463,7 @@ get_apnic_info() {
 
 get_area_data() {
     if [ "${2}" = "ipv4" ]; then
-        [ "${IPV4_DATA:="0"}" != "0" ] && [ "${IPV4_DATA}" != "1" ] && [ "${IPV4_DATA}" != "2" ] && return "0"
+        [ "${IPV4_DATA}" != "0" ] && [ "${IPV4_DATA}" != "1" ] && [ "${IPV4_DATA}" != "2" ] && return "0"
         awk -F '|' '$1 == "apnic" \
             && $2 == "'"${1}"'" \
             && $3 == "ipv4" \
@@ -456,7 +473,7 @@ get_area_data() {
             | sort -n -t ' ' -k 1 -k 2 -k 3 -k 4 -k 5 \
             | awk '{printf "%u.%u.%u.%u/%u\n",$1,$2,$3,$4,$5}' > "${PATH_TMP}/${3%.*}.dat"
     elif [ "${2}" = "ipv6" ]; then
-        [ "${IPV6_DATA:="2"}" != "0" ] && [ "${IPV6_DATA}" != "1" ] && [ "${IPV6_DATA}" != "2" ] && return "0"
+        [ "${IPV6_DATA}" != "0" ] && [ "${IPV6_DATA}" != "1" ] && [ "${IPV6_DATA}" != "2" ] && return "0"
         awk -F '|' '$1 == "apnic" \
             && $2 == "'"${1}"'" \
             && $3 == "ipv6" \
@@ -478,7 +495,7 @@ get_area_data() {
 
 split_data_file() {
     [ ! -f "${1}" ] && return "1"
-    ! echo "${PARA_QUERY_PROC_NUM:="4"}" | grep -qE '^[1-9][0-9]*$' && PARA_QUERY_PROC_NUM="4"
+    ! echo "${PARA_QUERY_PROC_NUM}" | grep -qE '^[1-9][0-9]*$' && PARA_QUERY_PROC_NUM="4"
     local findex="0"
     until [ "${findex}" -ge "${PARA_QUERY_PROC_NUM}" ]
     do
@@ -599,8 +616,8 @@ isp_data_multi_proc() {
 }
 
 get_isp_data() {
-    [ "${1}" = "ipv4" ] && [ "${IPV4_DATA:="0"}" != "0" ] && [ "${IPV4_DATA}" != "1" ] && [ "${IPV4_DATA}" != "2" ] && return "0"
-    [ "${1}" = "ipv6" ] && [ "${IPV6_DATA:="2"}" != "0" ] && [ "${IPV6_DATA}" != "1" ] && [ "${IPV6_DATA}" != "2" ] && return "0"
+    [ "${1}" = "ipv4" ] && [ "${IPV4_DATA}" != "0" ] && [ "${IPV4_DATA}" != "1" ] && [ "${IPV4_DATA}" != "2" ] && return "0"
+    [ "${1}" = "ipv6" ] && [ "${IPV6_DATA}" != "0" ] && [ "${IPV6_DATA}" != "1" ] && [ "${IPV6_DATA}" != "2" ] && return "0"
     if [ "${1}" = "ipv4" ]; then
         lz_echo "Generating IPv4 ISP item data takes a long time."
         split_data_file "${PATH_TMP}/${ISP_DATA_0%.*}.dat" || return "1"
@@ -660,7 +677,7 @@ aggregate_ipv4_data() {
                 sed -i -e "s:^${ip_item}$:${ip_item%/*}/$(( mask - 1 )):" -e "s:^${next_item}$:#&:" "${2}"
                 [ "${PROGRESS_BAR}" = "0" ] && [ "$(( count % 10 ))" = "0" ] && echo -n "."
                 count="$(( count + 1 ))"
-                if [ "${IPV4_DATA:="0"}" = "1" ]; then
+                if [ "${IPV4_DATA}" = "1" ]; then
                     # Used to correct APNIC raw data errors. In principle, this situation should not occur, 
                     # otherwise it will cause chaos in the online world.
                     # This portion of code will extend the host runtime used in the CIDR data aggregation process.
@@ -692,7 +709,7 @@ IP_BUF_INPUT
 }
 
 get_ipv4_cidr_data() {
-    [ "${IPV4_DATA:="0"}" != "0" ] && [ "${IPV4_DATA}" != "1" ] && return "0"
+    [ "${IPV4_DATA}" != "0" ] && [ "${IPV4_DATA}" != "1" ] && return "0"
     lz_echo "Generating IPv4 CIDR data takes some time."
     lz_echo "Don't interrupt & Please wait......"
     local index="0" sfname="" fname="" total="0"
@@ -792,7 +809,7 @@ aggregate_ipv6_data() {
                 sed -i -e "s|^${ip_item}$|${ip_item%/*}/$(( mask - 1 ))|" -e "s|^${next_item}$|#&|" "${2}"
                 [ "${PROGRESS_BAR}" = "0" ] && [ "$(( count % 10 ))" = "0" ] && echo -n "."
                 count="$(( count + 1 ))"
-                if [ "${IPV6_DATA:="2"}" = "1" ]; then
+                if [ "${IPV6_DATA}" = "1" ]; then
                     local addr_header="" nno=""
                     local tail_no="$(( 6 - index / 16 ))"
                     [ "${tail_no}" != "0" ] && eval addr_header="\${addr${tail_no}}:"
@@ -822,7 +839,7 @@ IP_BUF_INPUT
 }
 
 get_ipv6_cidr_data() {
-    [ "${IPV6_DATA:="2"}" != "0" ] && [ "${IPV6_DATA}" != "1" ] && return "0"
+    [ "${IPV6_DATA}" != "0" ] && [ "${IPV6_DATA}" != "1" ] && return "0"
     lz_echo "Generating IPv6 CIDR data takes some time."
     lz_echo "Don't interrupt & Please wait......"
     local index="0" sfname="" fname="" total="0"
@@ -859,7 +876,7 @@ save_data() {
         return "1"
     }
     local index="0"
-    if [ "${IPV4_DATA:="0"}" = "0" ] || [ "${IPV4_DATA}" = "1" ] || [ "${IPV4_DATA}" = "2" ]; then
+    if [ "${IPV4_DATA}" = "0" ] || [ "${IPV4_DATA}" = "1" ] || [ "${IPV4_DATA}" = "2" ]; then
         until [ "${index}" -gt "10" ]
         do
             eval save_target_data "${PATH_ISP}" "\${ISP_DATA_${index}}" || return "1"
@@ -874,7 +891,7 @@ save_data() {
             done
         fi
     fi
-    if [ "${IPV6_DATA:="2"}" = "0" ] || [ "${IPV6_DATA}" = "1" ] || [ "${IPV6_DATA}" = "2" ]; then
+    if [ "${IPV6_DATA}" = "0" ] || [ "${IPV6_DATA}" = "1" ] || [ "${IPV6_DATA}" = "2" ]; then
         index="0"
         until [ "${index}" -gt "10" ]
         do
@@ -947,8 +964,9 @@ get_file_time_stamp() {
 
 show_header() {
     BEGIN_TIME="$( date +%s -d "$( date +"%F %T" )" )"
+    if [ ! "${LZ_VERSION}" ] || [ -z "${LZ_VERSION}" ]; then LZ_VERSION="v1.0.2"; fi;
     lz_echo
-    lz_echo "LZ ISPRO ${LZ_VERSION:="v1.0.2"} script commands start......"
+    lz_echo "LZ ISPRO ${LZ_VERSION} script commands start......"
     lz_echo "By LZ (larsonzhang@gmail.com)"
     lz_echo "---------------------------------------------"
     lz_echo "Command in the ${PATH_CURRENT}"
@@ -962,13 +980,13 @@ show_data_path() {
     lz_echo "---------------------------------------------"
     [ -n "${file_time_stamp}" ] && lz_echo "Data Time       ${file_time_stamp}"
     lz_echo "APNIC IP INFO   ${PATH_APNIC}"
-    if [ "${IPV4_DATA:="0"}" = "0" ] || [ "${IPV4_DATA}" = "1" ] || [ "${IPV4_DATA}" = "2" ]; then
+    if [ "${IPV4_DATA}" = "0" ] || [ "${IPV4_DATA}" = "1" ] || [ "${IPV4_DATA}" = "2" ]; then
         lz_echo "ISP IPv4        ${PATH_ISP}"
         if [ "${IPV4_DATA}" = "0" ] || [ "${IPV4_DATA}" = "1" ]; then
             lz_echo "ISP IPv4 CIDR   ${PATH_CIDR}"
         fi
     fi
-    if [ "${IPV6_DATA:="2"}" = "0" ] || [ "${IPV6_DATA}" = "1" ] || [ "${IPV6_DATA}" = "2" ]; then
+    if [ "${IPV6_DATA}" = "0" ] || [ "${IPV6_DATA}" = "1" ] || [ "${IPV6_DATA}" = "2" ]; then
         lz_echo "ISP IPv6        ${PATH_IPV6}"
         if [ "${IPV6_DATA}" = "0" ] || [ "${IPV6_DATA}" = "1" ]; then
             lz_echo "ISP IPv6 CIDR   ${PATH_IPV6_CIDR}"
@@ -996,7 +1014,7 @@ do
     proc_sync || break
     check_module "whois" || break
     check_module "wget" || break
-    init_project_dir || break
+    init_parameter || break
     init_isp_data_script || break
     get_apnic_info || break
     get_area_data "CN" "ipv4" "${ISP_DATA_0}" || break

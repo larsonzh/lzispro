@@ -38,8 +38,8 @@ init_param() {
     # IP Address Information Details Query Host
     [ -z "${WHOIS_HOST}" ] && return "1"
     # Maximum Number Of Retries After IP Address Query Failure
+    ! echo "${RETRY_NUM}" | grep -qE '^[0-9][0-9]*$' && return "1"
     RETRY_NUM="$( printf "%u\n" "${RETRY_NUM}" )"
-    ! echo "${RETRY_NUM}" | grep -qE '^[0-9]$|^[1-9][0-9]*$' && return "1"
     return "0"
 }
 
@@ -115,7 +115,6 @@ failure_handling() {
 
 add_isp_data() {
     local DATA_BUF="" retval="0" count="0" line="" isp_info="" retry="0"
-    [ -z "${WHOIS_HOST}" ] && WHOIS_HOST="whois.apnic.net"
     if [ "${IPV_TYPE}" = "ipv4" ]; then
         DATA_BUF="$( grep -Eo '^([0-9]{1,3}[\.]){3}[0-9]{1,3}([\/][0-9]{1,2}){0,1}$' "${PATH_SRC}/${SRC_FILENAME}" )"
     else
