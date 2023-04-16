@@ -17,7 +17,7 @@
 IPV_TYPE="${1}"
 
 # Source Data File index number
-SRC_INDEX="$( echo "${2}" | grep -Eo '^[0-9][0-9]*$' | sed -n 1p )"
+SRC_INDEX="$( echo "${2}" | sed -n '/^[0-9][0-9]*$/{1p;q}' )"
 
 # ------------------ Function -------------------
 
