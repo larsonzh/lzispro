@@ -242,6 +242,15 @@ detect_str_spaces() {
     return "0"
 }
 
+compare_dir_name() {
+    eval [ "\${${1}}" = "\${${2}}" ] && {
+        lz_echo "The ${1} directory cann't have the same name"
+        lz_echo "as ${2} directory. Game Over !!!"
+        return "1"
+    }
+    return "0"
+}
+
 create_directory() {
     eval [ ! -d "\${${1}}" ] && {
         mkdir -p "\${${1}}"
@@ -254,95 +263,7 @@ create_directory() {
     return "0"
 }
 
-init_param() {
-    chmod -R 775 "${PATH_CURRENT}"/*
-    detect_str_spaces "PATH_FUNC" || return "1"
-    [ ! -d "${PATH_FUNC}" ] && {
-        lz_echo "PATH_FUNC directory does not exist."
-        lz_echo "Game Over !!!"
-        return "1"
-    }
-    detect_str_spaces "ISP_DATA_SCRIPT" || return "1"
-    [ ! -f "${PATH_FUNC}/${ISP_DATA_SCRIPT}" ] && {
-        lz_echo "${PATH_FUNC}/${ISP_DATA_SCRIPT} does not exist."
-        lz_echo "Game Over !!!"
-    }
-    detect_str_spaces "PATH_APNIC" || return "1"
-    [ "${PATH_APNIC}" = "${PATH_FUNC}" ] && {
-        lz_echo "The PATH_APNIC directory cann't have the same name"
-        lz_echo "as PATH_FUNC directory. Game Over !!!"
-        return "1"
-    }
-    detect_str_spaces "PATH_ISP" || return "1"
-    [ "${PATH_ISP}" = "${PATH_FUNC}" ] && {
-        lz_echo "The PATH_ISP directory cann't have the same name"
-        lz_echo "as PATH_FUNC directory. Game Over !!!"
-        return "1"
-    }
-    detect_str_spaces "PATH_CIDR" || return "1"
-    [ "${PATH_CIDR}" = "${PATH_FUNC}" ] && {
-        lz_echo "The PATH_CIDR directory cann't have the same name"
-        lz_echo "as PATH_FUNC directory. Game Over !!!"
-        return "1"
-    }
-    detect_str_spaces "PATH_IPV6" || return "1"
-    [ "${PATH_IPV6}" = "${PATH_FUNC}" ] && {
-        lz_echo "The PATH_IPV6 directory cann't have the same name"
-        lz_echo "as PATH_FUNC directory. Game Over !!!"
-        return "1"
-    }
-    detect_str_spaces "PATH_IPV6_CIDR" || return "1"
-    [ "${PATH_IPV6_CIDR}" = "${PATH_APNIC}" ] && {
-        lz_echo "The PATH_IPV6_CIDR directory cann't have the same name"
-        lz_echo "as PATH_APNIC directory. Game Over !!!"
-        return "1"
-    }
-    detect_str_spaces "PATH_TMP" || return "1"
-    [ "${PATH_TMP}" = "${PATH_FUNC}" ] && {
-        lz_echo "The PATH_TMP directory cann't have the same name"
-        lz_echo "as PATH_FUNC directory. Game Over !!!"
-        return "1"
-    }
-    [ "${PATH_TMP}" = "${PATH_APNIC}" ] && {
-        lz_echo "The PATH_TMP directory cann't have the same name"
-        lz_echo "as PATH_APNIC directory. Game Over !!!"
-        return "1"
-    }
-    [ "${PATH_TMP}" = "${PATH_ISP}" ] && {
-        lz_echo "The PATH_TMP directory cann't have the same name"
-        lz_echo "as PATH_ISP directory. Game Over !!!"
-        return "1"
-    }
-    [ "${PATH_TMP}" = "${PATH_CIDR}" ] && {
-        lz_echo "The PATH_TMP directory cann't have the same name"
-        lz_echo "as PATH_CIDR directory. Game Over !!!"
-        return "1"
-    }
-    [ "${PATH_TMP}" = "${PATH_IPV6}" ] && {
-        lz_echo "The PATH_TMP directory cann't have the same name"
-        lz_echo "as PATH_IPV6 directory. Game Over !!!"
-        return "1"
-    }
-    [ "${PATH_TMP}" = "${PATH_IPV6_CIDR}" ] && {
-        lz_echo "The PATH_TMP directory cann't have the same name"
-        lz_echo "as PATH_IPV6_CIDR directory. Game Over !!!"
-        return "1"
-    }
-    create_directory "PATH_APNIC" || return "1"
-    if [ "${IPV4_DATA:="0"}" = "0" ] || [ "${IPV4_DATA}" = "1" ] || [ "${IPV4_DATA}" = "2" ]; then
-        create_directory "PATH_ISP" || return "1"
-    fi
-    if [ "${IPV4_DATA}" = "0" ] || [ "${IPV4_DATA}" = "1" ]; then
-        create_directory "PATH_CIDR" || return "1"
-    fi
-    if [ "${IPV6_DATA="2"}" = "0" ] || [ "${IPV6_DATA}" = "1" ] || [ "${IPV6_DATA}" = "2" ]; then
-        create_directory "PATH_IPV6" || return "1"
-    fi
-    if [ "${IPV6_DATA}" = "0" ] || [ "${IPV6_DATA}" = "1" ]; then
-        create_directory "PATH_IPV6_CIDR" || return "1"
-    fi
-    create_directory "PATH_TMP" || return "1"
-    chmod -R 775 "${PATH_CURRENT}"/*
+check_filename() {
     [ -z "${APNIC_IP_INFO}" ] && {
         lz_echo "The APNIC_IP_INFO file name is null."
         lz_echo "Game Over !!!"
@@ -432,6 +353,55 @@ init_param() {
         }
         index="$(( index + 1 ))"
     done
+    return "0"
+}
+
+init_param() {
+    chmod -R 775 "${PATH_CURRENT}"/*
+    detect_str_spaces "PATH_FUNC" || return "1"
+    [ ! -d "${PATH_FUNC}" ] && {
+        lz_echo "PATH_FUNC directory does not exist."
+        lz_echo "Game Over !!!"
+        return "1"
+    }
+    detect_str_spaces "ISP_DATA_SCRIPT" || return "1"
+    [ ! -f "${PATH_FUNC}/${ISP_DATA_SCRIPT}" ] && {
+        lz_echo "${PATH_FUNC}/${ISP_DATA_SCRIPT} does not exist."
+        lz_echo "Game Over !!!"
+    }
+    detect_str_spaces "PATH_APNIC" || return "1"
+    compare_dir_name "PATH_APNIC" "PATH_FUNC" || return "1"
+    detect_str_spaces "PATH_ISP" || return "1"
+    compare_dir_name "PATH_ISP" "PATH_FUNC" || return "1"
+    detect_str_spaces "PATH_CIDR" || return "1"
+    compare_dir_name "PATH_CIDR" "PATH_FUNC" || return "1"
+    detect_str_spaces "PATH_IPV6" || return "1"
+    compare_dir_name "PATH_IPV6" "PATH_FUNC" || return "1"
+    detect_str_spaces "PATH_IPV6_CIDR" || return "1"
+    compare_dir_name "PATH_IPV6_CIDR" "PATH_FUNC" || return "1"
+    detect_str_spaces "PATH_TMP" || return "1"
+    compare_dir_name "PATH_TMP" "PATH_FUNC" || return "1"
+    compare_dir_name "PATH_TMP" "PATH_APNIC" || return "1"
+    compare_dir_name "PATH_TMP" "PATH_ISP" || return "1"
+    compare_dir_name "PATH_TMP" "PATH_CIDR" || return "1"
+    compare_dir_name "PATH_TMP" "PATH_IPV6" || return "1"
+    compare_dir_name "PATH_TMP" "PATH_IPV6_CIDR" || return "1"
+    create_directory "PATH_APNIC" || return "1"
+    if [ "${IPV4_DATA:="0"}" = "0" ] || [ "${IPV4_DATA}" = "1" ] || [ "${IPV4_DATA}" = "2" ]; then
+        create_directory "PATH_ISP" || return "1"
+    fi
+    if [ "${IPV4_DATA}" = "0" ] || [ "${IPV4_DATA}" = "1" ]; then
+        create_directory "PATH_CIDR" || return "1"
+    fi
+    if [ "${IPV6_DATA="2"}" = "0" ] || [ "${IPV6_DATA}" = "1" ] || [ "${IPV6_DATA}" = "2" ]; then
+        create_directory "PATH_IPV6" || return "1"
+    fi
+    if [ "${IPV6_DATA}" = "0" ] || [ "${IPV6_DATA}" = "1" ]; then
+        create_directory "PATH_IPV6_CIDR" || return "1"
+    fi
+    create_directory "PATH_TMP" || return "1"
+    chmod -R 775 "${PATH_CURRENT}"/*
+    check_filename || return "1"
     [ -z "${DOWNLOAD_URL}" ] && DOWNLOAD_URL="http://ftp.apnic.net/apnic/stats/apnic/delegated-apnic-latest"
     detect_str_spaces "DOWNLOAD_URL" || return "1"
     [ -z "${WHOIS_HOST}" ] && WHOIS_HOST="whois.apnic.net"
