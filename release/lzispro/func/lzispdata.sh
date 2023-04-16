@@ -47,7 +47,7 @@ init_param() {
         RETRY_NUM="$( printf "%u\n" "${RETRY_NUM}" )"
         return "0"
     done
-    echo "$( date +"%F %T" ) [$$]:" "Illegal call. Bye ~ !!!"
+    echo "$( date +"%F %T" ) [$$]:" "Illegal call. Bye ~ !!!" 2> /dev/null
     return "1"
 }
 
