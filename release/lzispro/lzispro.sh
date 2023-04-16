@@ -13,7 +13,7 @@
 #   CMCC, CRTC, CERNET, GWBN and other ISP operators. The data will cover all IPv4/6 addresses in Chinese Mainland.
 # 4.Generate compressed IPv4/6 CIDR format address data through the CIDR aggregation algorithm.
 
-# Available Linux platforms: Ubuntu, CentOS Stream, ,Rocky, Deepin, ASUSWRT-Merlin, OpenWrt, ......
+# Available Linux platforms: Ubuntu, CentOS Stream, Rocky, Deepin, ASUSWRT-Merlin, OpenWrt, ......
 
 # Script Command (e.g., in the lzispro Directory)
 # Launch Script          ./lzispro.sh
