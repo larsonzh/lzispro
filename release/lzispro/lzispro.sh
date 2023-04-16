@@ -357,71 +357,76 @@ check_filename() {
 }
 
 init_param() {
-    chmod -R 775 "${PATH_CURRENT}"/*
-    detect_str_spaces "PATH_FUNC" || return "1"
-    [ ! -d "${PATH_FUNC}" ] && {
-        lz_echo "PATH_FUNC directory does not exist."
-        lz_echo "Game Over !!!"
-        return "1"
-    }
-    detect_str_spaces "ISP_DATA_SCRIPT" || return "1"
-    [ ! -f "${PATH_FUNC}/${ISP_DATA_SCRIPT}" ] && {
-        lz_echo "${PATH_FUNC}/${ISP_DATA_SCRIPT} does not exist."
-        lz_echo "Game Over !!!"
-    }
-    detect_str_spaces "PATH_APNIC" || return "1"
-    compare_dir_name "PATH_APNIC" "PATH_FUNC" || return "1"
-    detect_str_spaces "PATH_ISP" || return "1"
-    compare_dir_name "PATH_ISP" "PATH_FUNC" || return "1"
-    detect_str_spaces "PATH_CIDR" || return "1"
-    compare_dir_name "PATH_CIDR" "PATH_FUNC" || return "1"
-    detect_str_spaces "PATH_IPV6" || return "1"
-    compare_dir_name "PATH_IPV6" "PATH_FUNC" || return "1"
-    detect_str_spaces "PATH_IPV6_CIDR" || return "1"
-    compare_dir_name "PATH_IPV6_CIDR" "PATH_FUNC" || return "1"
-    detect_str_spaces "PATH_TMP" || return "1"
-    compare_dir_name "PATH_TMP" "PATH_FUNC" || return "1"
-    compare_dir_name "PATH_TMP" "PATH_APNIC" || return "1"
-    compare_dir_name "PATH_TMP" "PATH_ISP" || return "1"
-    compare_dir_name "PATH_TMP" "PATH_CIDR" || return "1"
-    compare_dir_name "PATH_TMP" "PATH_IPV6" || return "1"
-    compare_dir_name "PATH_TMP" "PATH_IPV6_CIDR" || return "1"
-    create_directory "PATH_APNIC" || return "1"
-    if [ "${IPV4_DATA:="0"}" = "0" ] || [ "${IPV4_DATA}" = "1" ] || [ "${IPV4_DATA}" = "2" ]; then
-        create_directory "PATH_ISP" || return "1"
-    fi
-    if [ "${IPV4_DATA}" = "0" ] || [ "${IPV4_DATA}" = "1" ]; then
-        create_directory "PATH_CIDR" || return "1"
-    fi
-    if [ "${IPV6_DATA="2"}" = "0" ] || [ "${IPV6_DATA}" = "1" ] || [ "${IPV6_DATA}" = "2" ]; then
-        create_directory "PATH_IPV6" || return "1"
-    fi
-    if [ "${IPV6_DATA}" = "0" ] || [ "${IPV6_DATA}" = "1" ]; then
-        create_directory "PATH_IPV6_CIDR" || return "1"
-    fi
-    create_directory "PATH_TMP" || return "1"
-    chmod -R 775 "${PATH_CURRENT}"/*
-    check_filename || return "1"
-    [ -z "${DOWNLOAD_URL}" ] && DOWNLOAD_URL="http://ftp.apnic.net/apnic/stats/apnic/delegated-apnic-latest"
-    detect_str_spaces "DOWNLOAD_URL" || return "1"
-    [ -z "${WHOIS_HOST}" ] && WHOIS_HOST="whois.apnic.net"
-    detect_str_spaces "WHOIS_HOST" || return "1"
-    ! echo "${PARA_QUERY_PROC_NUM}" | grep -qE '^[0-9][0-9]*$' && {
-        lz_echo "PARA_QUERY_PROC_NUM isn't an decimal unsigned integer."
-        lz_echo "Game Over !!!"
-        return "1"
-    }
-    PARA_QUERY_PROC_NUM="$( printf "%u\n" "${PARA_QUERY_PROC_NUM}" )"
-    ! echo "${RETRY_NUM}" | grep -qE '^[0-9][0-9]*$' && {
-        lz_echo "RETRY_NUM isn't an decimal unsigned integer."
-        lz_echo "Game Over !!!"
-        return "1"
-    }
-    RETRY_NUM="$( printf "%u\n" "${RETRY_NUM}" )"
-    [ ! "${PROGRESS_BAR}" ] && PROGRESS_BAR="0"
-    kill_father_processes
-    kill_child_processes
-    return "0"
+    while true
+    do
+        chmod -R 775 "${PATH_CURRENT}"/*
+        detect_str_spaces "PATH_FUNC" || break
+        [ ! -d "${PATH_FUNC}" ] && {
+            lz_echo "PATH_FUNC directory does not exist."
+            lz_echo "Game Over !!!"
+            break
+        }
+        detect_str_spaces "ISP_DATA_SCRIPT" || break
+        [ ! -f "${PATH_FUNC}/${ISP_DATA_SCRIPT}" ] && {
+            lz_echo "${PATH_FUNC}/${ISP_DATA_SCRIPT} does not exist."
+            lz_echo "Game Over !!!"
+            break
+        }
+        detect_str_spaces "PATH_APNIC" || break
+        compare_dir_name "PATH_APNIC" "PATH_FUNC" || break
+        detect_str_spaces "PATH_ISP" || break
+        compare_dir_name "PATH_ISP" "PATH_FUNC" || break
+        detect_str_spaces "PATH_CIDR" || break
+        compare_dir_name "PATH_CIDR" "PATH_FUNC" || break
+        detect_str_spaces "PATH_IPV6" || break
+        compare_dir_name "PATH_IPV6" "PATH_FUNC" || break
+        detect_str_spaces "PATH_IPV6_CIDR" || break
+        compare_dir_name "PATH_IPV6_CIDR" "PATH_FUNC" || break
+        detect_str_spaces "PATH_TMP" || break
+        compare_dir_name "PATH_TMP" "PATH_FUNC" || break
+        compare_dir_name "PATH_TMP" "PATH_APNIC" || break
+        compare_dir_name "PATH_TMP" "PATH_ISP" || break
+        compare_dir_name "PATH_TMP" "PATH_CIDR" || break
+        compare_dir_name "PATH_TMP" "PATH_IPV6" || break
+        compare_dir_name "PATH_TMP" "PATH_IPV6_CIDR" || break
+        create_directory "PATH_APNIC" || break
+        if [ "${IPV4_DATA:="0"}" = "0" ] || [ "${IPV4_DATA}" = "1" ] || [ "${IPV4_DATA}" = "2" ]; then
+            create_directory "PATH_ISP" || break
+        fi
+        if [ "${IPV4_DATA}" = "0" ] || [ "${IPV4_DATA}" = "1" ]; then
+            create_directory "PATH_CIDR" || break
+        fi
+        if [ "${IPV6_DATA="2"}" = "0" ] || [ "${IPV6_DATA}" = "1" ] || [ "${IPV6_DATA}" = "2" ]; then
+            create_directory "PATH_IPV6" || break
+        fi
+        if [ "${IPV6_DATA}" = "0" ] || [ "${IPV6_DATA}" = "1" ]; then
+            create_directory "PATH_IPV6_CIDR" || break
+        fi
+        create_directory "PATH_TMP" || break
+        chmod -R 775 "${PATH_CURRENT}"/*
+        check_filename || break
+        [ -z "${DOWNLOAD_URL}" ] && DOWNLOAD_URL="http://ftp.apnic.net/apnic/stats/apnic/delegated-apnic-latest"
+        detect_str_spaces "DOWNLOAD_URL" || break
+        [ -z "${WHOIS_HOST}" ] && WHOIS_HOST="whois.apnic.net"
+        detect_str_spaces "WHOIS_HOST" || break
+        ! echo "${PARA_QUERY_PROC_NUM}" | grep -qE '^[0-9][0-9]*$' && {
+            lz_echo "PARA_QUERY_PROC_NUM isn't an decimal unsigned integer."
+            lz_echo "Game Over !!!"
+            break
+        }
+        PARA_QUERY_PROC_NUM="$( printf "%u\n" "${PARA_QUERY_PROC_NUM}" )"
+        ! echo "${RETRY_NUM}" | grep -qE '^[0-9][0-9]*$' && {
+            lz_echo "RETRY_NUM isn't an decimal unsigned integer."
+            lz_echo "Game Over !!!"
+            break
+        }
+        RETRY_NUM="$( printf "%u\n" "${RETRY_NUM}" )"
+        [ ! "${PROGRESS_BAR}" ] && PROGRESS_BAR="0"
+        kill_father_processes
+        kill_child_processes
+        return "0"
+    done
+    return "1"
 }
 
 export_env_var() {
