@@ -17,15 +17,15 @@
 IPV_TYPE="${1}"
 
 # Source Data File index number
-SRC_INDEX="$( printf "%u\n" "${2}" )"
+SRC_INDEX="$( echo "${2}" | grep -Eo '^[0-9][0-9]*$' | sed -n 1p )"
 
 # ------------------ Function -------------------
 
 init_param() {
     [ "${1}" != "2" ] && return "1"
     [ "${IPV_TYPE}" != "ipv4" ] && [ "${IPV_TYPE}" != "ipv6" ] && return "1"
+    [ -z "${SRC_INDEX}" ] && return "1"
     SRC_INDEX="$( printf "%u\n" "${SRC_INDEX}" )"
-    ! echo "${SRC_INDEX}" | grep -qE '^[0-9][0-9]*$' && return "1"
     # Source Data File Path
     PATH_SRC="${PATH_TMP}"
     [ ! -d "${PATH_SRC}" ] && return "1"
