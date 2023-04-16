@@ -233,7 +233,7 @@ check_module() {
     return "1"
 }
 
-detect_str_spaces() {
+detect_str_space() {
     eval echo "\${${1}}" | grep -q ' ' && {
         lz_echo "${1} string cann't have any spaces."
         lz_echo "Game Over !!!"
@@ -263,94 +263,48 @@ create_directory() {
     return "0"
 }
 
-check_filename() {
-    [ -z "${APNIC_IP_INFO}" ] && {
-        lz_echo "The APNIC_IP_INFO file name is null."
+detect_empty_filename() {
+    eval [ -z "\${${1}}" ] && {
+        lz_echo "The {${1}} file name is null."
         lz_echo "Game Over !!!"
         return "1"
     }
-    detect_str_spaces "APNIC_IP_INFO" || return "1"
-    local index="0" fname="" cidr_fname="" ipv6_fname="" cidr_ipv6_fname=""
+    return "0"
+}
+
+compare_filename() {
+    eval [ "\${${1}}" = "\${${2}}" ] && {
+        lz_echo "${1} files and ${2} files"
+        lz_echo "cann't have the same name. Game Over !!!"
+        return "1"
+    }
+    return "0"
+}
+
+check_filename() {
+    detect_empty_filename "APNIC_IP_INFO" || return "1"
+    detect_str_space "APNIC_IP_INFO" || return "1"
+    local index="0"
     until [ "${index}" -gt "10" ]
     do
-        eval fname="\${ISP_DATA_${index}}"
-        eval cidr_fname="\${ISP_CIDR_DATA_${index}}"
-        eval ipv6_fname="\${ISP_IPV6_DATA_${index}}"
-        eval cidr_ipv6_fname="\${ISP_IPV6_CIDR_DATA_${index}}"
-        [ -z "${fname}" ] && {
-            lz_echo "The ISP_DATA_${index} file name is null."
-            lz_echo "Game Over !!!"
-            return "1"
-        }
-        detect_str_spaces "ISP_DATA_${index}" || return "1"
-        [ -z "${cidr_fname}" ] && {
-            lz_echo "The ISP_CIDR_DATA_${index} file name is null."
-            lz_echo "Game Over !!!"
-            return "1"
-        }
-        detect_str_spaces "ISP_CIDR_DATA_${index}" || return "1"
-        [ -z "${ipv6_fname}" ] && {
-            lz_echo "The ISP_IPV6_DATA_${index} file name is null."
-            lz_echo "Game Over !!!"
-            return "1"
-        }
-        detect_str_spaces "ISP_IPV6_DATA_${index}" || return "1"
-        [ -z "${cidr_ipv6_fname}" ] && {
-            lz_echo "The ISP_IPV6_CIDR_DATA_${index} file name is null."
-            lz_echo "Game Over !!!"
-            return "1"
-        }
-        detect_str_spaces "ISP_IPV6_CIDR_DATA_${index}" || return "1"
-        [ "${APNIC_IP_INFO}" = "${fname}" ] && {
-            lz_echo "The APNIC_IP_INFO file cann't have the same name"
-            lz_echo "as ISP_DATA_${index} file. Game Over !!!"
-            return "1"
-        }
-        [ "${APNIC_IP_INFO}" = "${cidr_fname}" ] && {
-            lz_echo "The APNIC_IP_INFO file cann't have the same name"
-            lz_echo "as ISP_CIDR_DATA_${index} file. Game Over !!!"
-            return "1"
-        }
-        [ "${APNIC_IP_INFO}" = "${ipv6_fname}" ] && {
-            lz_echo "The APNIC_IP_INFO file cann't have the same name"
-            lz_echo "as ISP_IPV6_DATA_${index} file. Game Over !!!"
-            return "1"
-        }
-        [ "${APNIC_IP_INFO}" = "${cidr_ipv6_fname}" ] && {
-            lz_echo "The APNIC_IP_INFO file cann't have the same name"
-            lz_echo "as ISP_IPV6_CIDR_DATA_${index} file. Game Over !!!"
-            return "1"
-        }
-        [ "${fname}" = "${cidr_fname}" ] && {
-            lz_echo "ISP_DATA_${index} files and ISP_CIDR_DATA_${index} files"
-            lz_echo "cann't have the same name. Game Over !!!"
-            return "1"
-        }
-        [ "${fname}" = "${ipv6_fname}" ] && {
-            lz_echo "ISP_DATA_${index} files and ISP_IPV6_DATA_${index} files"
-            lz_echo "cann't have the same name. Game Over !!!"
-            return "1"
-        }
-        [ "${fname}" = "${cidr_ipv6_fname}" ] && {
-            lz_echo "ISP_DATA_${index} files and ISP_IPV6_CIDR_DATA_${index} files"
-            lz_echo "cann't have the same name. Game Over !!!"
-            return "1"
-        }
-        [ "${cidr_fname}" = "${ipv6_fname}" ] && {
-            lz_echo "ISP_CIDR_DATA_${index} files and ISP_IPV6_DATA_${index} files"
-            lz_echo "cann't have the same name. Game Over !!!"
-            return "1"
-        }
-        [ "${cidr_fname}" = "${cidr_ipv6_fname}" ] && {
-            lz_echo "ISP_CIDR_DATA_${index} files and ISP_IPV6_CIDR_DATA_${index} files"
-            lz_echo "cann't have the same name. Game Over !!!"
-            return "1"
-        }
-        [ "${ipv6_fname}" = "${cidr_ipv6_fname}" ] && {
-            lz_echo "ISP_IPV6_DATA_${index} files and ISP_IPV6_CIDR_DATA_${index} files"
-            lz_echo "cann't have the same name. Game Over !!!"
-            return "1"
-        }
+        detect_empty_filename "ISP_DATA_${index}" || return "1"
+        detect_str_space "ISP_DATA_${index}" || return "1"
+        detect_empty_filename "ISP_CIDR_DATA_${index}" || return "1"
+        detect_str_space "ISP_CIDR_DATA_${index}" || return "1"
+        detect_empty_filename "ISP_IPV6_DATA_${index}" || return "1"
+        detect_str_space "ISP_IPV6_DATA_${index}" || return "1"
+        detect_empty_filename "ISP_IPV6_CIDR_DATA_${index}" || return "1"
+        detect_str_space "ISP_IPV6_CIDR_DATA_${index}" || return "1"
+        compare_filename "APNIC_IP_INFO" "ISP_DATA_${index}" || return "1"
+        compare_filename "APNIC_IP_INFO" "ISP_CIDR_DATA_${index}" || return "1"
+        compare_filename "APNIC_IP_INFO" "ISP_IPV6_DATA_${index}" || return "1"
+        compare_filename "APNIC_IP_INFO" "ISP_IPV6_CIDR_DATA_${index}" || return "1"
+        compare_filename "ISP_DATA_${index}" "ISP_CIDR_DATA_${index}" || return "1"
+        compare_filename "ISP_DATA_${index}" "ISP_IPV6_DATA_${index}" || return "1"
+        compare_filename "ISP_DATA_${index}" "ISP_IPV6_CIDR_DATA_${index}" || return "1"
+        compare_filename "ISP_CIDR_DATA_${index}" "ISP_IPV6_DATA_${index}" || return "1"
+        compare_filename "ISP_CIDR_DATA_${index}" "ISP_IPV6_CIDR_DATA_${index}" || return "1"
+        compare_filename "ISP_IPV6_DATA_${index}" "ISP_IPV6_CIDR_DATA_${index}" || return "1"
         index="$(( index + 1 ))"
     done
     return "0"
@@ -360,29 +314,29 @@ init_param() {
     while true
     do
         chmod -R 775 "${PATH_CURRENT}"/*
-        detect_str_spaces "PATH_FUNC" || break
+        detect_str_space "PATH_FUNC" || break
         [ ! -d "${PATH_FUNC}" ] && {
             lz_echo "PATH_FUNC directory does not exist."
             lz_echo "Game Over !!!"
             break
         }
-        detect_str_spaces "ISP_DATA_SCRIPT" || break
+        detect_str_space "ISP_DATA_SCRIPT" || break
         [ ! -f "${PATH_FUNC}/${ISP_DATA_SCRIPT}" ] && {
             lz_echo "${PATH_FUNC}/${ISP_DATA_SCRIPT} does not exist."
             lz_echo "Game Over !!!"
             break
         }
-        detect_str_spaces "PATH_APNIC" || break
+        detect_str_space "PATH_APNIC" || break
         compare_dir_name "PATH_APNIC" "PATH_FUNC" || break
-        detect_str_spaces "PATH_ISP" || break
+        detect_str_space "PATH_ISP" || break
         compare_dir_name "PATH_ISP" "PATH_FUNC" || break
-        detect_str_spaces "PATH_CIDR" || break
+        detect_str_space "PATH_CIDR" || break
         compare_dir_name "PATH_CIDR" "PATH_FUNC" || break
-        detect_str_spaces "PATH_IPV6" || break
+        detect_str_space "PATH_IPV6" || break
         compare_dir_name "PATH_IPV6" "PATH_FUNC" || break
-        detect_str_spaces "PATH_IPV6_CIDR" || break
+        detect_str_space "PATH_IPV6_CIDR" || break
         compare_dir_name "PATH_IPV6_CIDR" "PATH_FUNC" || break
-        detect_str_spaces "PATH_TMP" || break
+        detect_str_space "PATH_TMP" || break
         compare_dir_name "PATH_TMP" "PATH_FUNC" || break
         compare_dir_name "PATH_TMP" "PATH_APNIC" || break
         compare_dir_name "PATH_TMP" "PATH_ISP" || break
@@ -406,9 +360,9 @@ init_param() {
         chmod -R 775 "${PATH_CURRENT}"/*
         check_filename || break
         [ -z "${DOWNLOAD_URL}" ] && DOWNLOAD_URL="http://ftp.apnic.net/apnic/stats/apnic/delegated-apnic-latest"
-        detect_str_spaces "DOWNLOAD_URL" || break
+        detect_str_space "DOWNLOAD_URL" || break
         [ -z "${WHOIS_HOST}" ] && WHOIS_HOST="whois.apnic.net"
-        detect_str_spaces "WHOIS_HOST" || break
+        detect_str_space "WHOIS_HOST" || break
         ! echo "${PARA_QUERY_PROC_NUM}" | grep -qE '^[0-9][0-9]*$' && {
             lz_echo "PARA_QUERY_PROC_NUM isn't an decimal unsigned integer."
             lz_echo "Game Over !!!"
