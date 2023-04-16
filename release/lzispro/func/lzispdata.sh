@@ -39,7 +39,7 @@ init_param() {
     [ -z "${WHOIS_HOST}" ] && return "1"
     # Maximum Number Of Retries After IP Address Query Failure
     RETRY_NUM="$( printf "%u\n" "${RETRY_NUM}" )"
-    ! echo "${RETRY_NUM}" | grep -qE '^[0-9][0-9]*$' && return "1"
+    ! echo "${RETRY_NUM}" | grep -qE '^[0-9]$|^[1-9][0-9]*$' && return "1"
     return "0"
 }
 
