@@ -11,7 +11,7 @@ Multi process parallel acquisition tool for IP address data of ISP network opera
 
 本产品同时也是本人单进程的 lzispcn 项目（ https://github.com/larsonzh/lzispcn.git ）的多进程版本。
 
-脚本在 Linux 环境下使用，运行平台包括：Ubuntu，CentOS，Deepin，ASUSWRT-Merlin，OpenWrt，......
+脚本在 Linux 环境下使用，运行平台包括：Ubuntu，CentOS Stream，Rocky，Deepin，ASUSWRT-Merlin，OpenWrt，......
 
 适用的 Shell 类型：sh，ash，dash，bash
 
@@ -61,11 +61,14 @@ Multi process parallel acquisition tool for IP address data of ISP network opera
   sudo apt install whois
 ```
 
-- CentOS
+- CentOS Stream | Rocky
 
 ```markdown
-  sudo yum update
-  sudo yum install whois
+  sudo dnf install -y epel-release
+  sudo dnf update -y
+  sudo dnf install -y gcc make perl kernel-devel kernel-headers bizp2 dkms whois
+  sudo dnf update kernel-*
+  sudo reboot
 ```
 
 - ASUSWRT-Merlin
@@ -177,7 +180,7 @@ lzispro.sh 脚本是本工具的主程序，可用文本编辑工具打开查看
 
 ![lzispro_openwrt_128](https://user-images.githubusercontent.com/73221087/231569234-b2c92800-8afb-4ada-9211-7f64176aa280.png)
 
-## CentOS
+## CentOS Stream
 
 安装在 11 代 U 笔记本电脑 VirtualBox 虚拟机里的 Linux 服务器，配置 4 GB 内存和 4 个处理器。脚本「并行查询处理多进程数量」参数设置为：PARA_QUERY_PROC_NUM="128"，使用 128 个查询处理进程。
 
