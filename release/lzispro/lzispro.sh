@@ -233,7 +233,7 @@ check_module() {
     return "1"
 }
 
-init_parameter() {
+init_param() {
     chmod -R 775 "${PATH_CURRENT}"/*
     [ ! -d "${PATH_FUNC}" ] && {
         lz_echo "PATH_FUNC directory does not exist."
@@ -300,15 +300,13 @@ init_parameter() {
         return "1"
     }
     [ ! -d "${PATH_APNIC}" ] && mkdir -p "${PATH_APNIC}"
-    [ ! "${IPV4_DATA}" ] && IPV4_DATA="0"
-    if [ "${IPV4_DATA}" = "0" ] || [ "${IPV4_DATA}" = "1" ] || [ "${IPV4_DATA}" = "2" ]; then
+    if [ "${IPV4_DATA:="0"}" = "0" ] || [ "${IPV4_DATA}" = "1" ] || [ "${IPV4_DATA}" = "2" ]; then
         [ ! -d "${PATH_ISP}" ] && mkdir -p "${PATH_ISP}"
     fi
     if [ "${IPV4_DATA}" = "0" ] || [ "${IPV4_DATA}" = "1" ]; then
         [ ! -d "${PATH_CIDR}" ] && mkdir -p "${PATH_CIDR}"
     fi
-    [ ! "${IPV6_DATA}" ] && IPV6_DATA="2"
-    if [ "${IPV6_DATA}" = "0" ] || [ "${IPV6_DATA}" = "1" ] || [ "${IPV6_DATA}" = "2" ]; then
+    if [ "${IPV6_DATA="2"}" = "0" ] || [ "${IPV6_DATA}" = "1" ] || [ "${IPV6_DATA}" = "2" ]; then
         [ ! -d "${PATH_IPV6}" ] && mkdir -p "${PATH_IPV6}"
     fi
     if [ "${IPV6_DATA}" = "0" ] || [ "${IPV6_DATA}" = "1" ]; then
@@ -403,18 +401,18 @@ init_parameter() {
     [ -z "${DOWNLOAD_URL}" ] && DOWNLOAD_URL="http://ftp.apnic.net/apnic/stats/apnic/delegated-apnic-latest"
     [ -z "${WHOIS_HOST}" ] && WHOIS_HOST="whois.apnic.net"
     ! echo "${PARA_QUERY_PROC_NUM}" | grep -qE '^[0-9][0-9]*$' && {
-        lz_echo "PARA_QUERY_PROC_NUM isn't an unsigned decimal integer."
+        lz_echo "PARA_QUERY_PROC_NUM isn't an decimal unsigned integer."
         lz_echo "Game Over !!!"
         return "1"
     }
     PARA_QUERY_PROC_NUM="$( printf "%u\n" "${PARA_QUERY_PROC_NUM}" )"
     ! echo "${RETRY_NUM}" | grep -qE '^[0-9][0-9]*$' && {
-        lz_echo "RETRY_NUM isn't an unsigned decimal integer."
+        lz_echo "RETRY_NUM isn't an decimal unsigned integer."
         lz_echo "Game Over !!!"
         return "1"
     }
     RETRY_NUM="$( printf "%u\n" "${RETRY_NUM}" )"
-    [ -z "${PROGRESS_BAR}" ] && PROGRESS_BAR="0"
+    [ ! "${PROGRESS_BAR}" ] && PROGRESS_BAR="0"
     kill_father_processes
     kill_child_processes
     return "0"
@@ -428,7 +426,9 @@ export_env_var() {
         export ISP_IPV6_DATA_"${index}"
         index="$(( index + 1 ))"
     done
+    export PATH_FUNC
     export PATH_TMP
+    export ISP_DATA_SCRIPT
     export WHOIS_HOST
     export RETRY_NUM
 }
@@ -964,7 +964,7 @@ get_file_time_stamp() {
 
 show_header() {
     BEGIN_TIME="$( date +%s -d "$( date +"%F %T" )" )"
-    if [ ! "${LZ_VERSION}" ] || [ -z "${LZ_VERSION}" ]; then LZ_VERSION="v1.0.2"; fi;
+    [ -z "${LZ_VERSION}" ] && LZ_VERSION="v1.0.2"
     lz_echo
     lz_echo "LZ ISPRO ${LZ_VERSION} script commands start......"
     lz_echo "By LZ (larsonzhang@gmail.com)"
@@ -1014,7 +1014,7 @@ do
     proc_sync || break
     check_module "whois" || break
     check_module "wget" || break
-    init_parameter || break
+    init_param || break
     init_isp_data_script || break
     get_apnic_info || break
     get_area_data "CN" "ipv4" "${ISP_DATA_0}" || break

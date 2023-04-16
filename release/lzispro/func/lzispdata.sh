@@ -22,25 +22,33 @@ SRC_INDEX="$( echo "${2}" | sed -n '/^[0-9]$\|^[1-9][0-9]*$/{1p;q}' )"
 # ------------------ Function -------------------
 
 init_param() {
-    [ "${1}" != "2" ] && return "1"
-    [ "${IPV_TYPE}" != "ipv4" ] && [ "${IPV_TYPE}" != "ipv6" ] && return "1"
-    [ -z "${SRC_INDEX}" ] && return "1"
-    # Source Data File Path
-    PATH_SRC="${PATH_TMP}"
-    [ ! -d "${PATH_SRC}" ] && return "1"
-    # Source Data File name
-    SRC_FILENAME="${ISP_DATA_0%.*}.dat_${SRC_INDEX}"
-    [ "${IPV_TYPE}" != "ipv4" ] && SRC_FILENAME="${ISP_IPV6_DATA_0%.*}.dat_${SRC_INDEX}"
-    [ ! -f "${PATH_SRC}/${SRC_FILENAME}" ] && return "1"
-    # Destination data file path
-    PATH_DST="${PATH_TMP}"
-    [ ! -d "${PATH_DST}" ] && return "1"
-    # IP Address Information Details Query Host
-    [ -z "${WHOIS_HOST}" ] && return "1"
-    # Maximum Number Of Retries After IP Address Query Failure
-    ! echo "${RETRY_NUM}" | grep -qE '^[0-9][0-9]*$' && return "1"
-    RETRY_NUM="$( printf "%u\n" "${RETRY_NUM}" )"
-    return "0"
+    while true
+    do
+        local path_cur="${2%/*}"
+        ! echo "${path_cur}" | grep -q '^[\/]' && path_cur="$( pwd )${path_cur#*.}"
+        [ "${path_cur}/${2##*/}" != "${PATH_FUNC}/${ISP_DATA_SCRIPT}" ] && break
+        [ "${1}" != "2" ] && break
+        [ "${IPV_TYPE}" != "ipv4" ] && [ "${IPV_TYPE}" != "ipv6" ] && break
+        [ -z "${SRC_INDEX}" ] && break
+        # Source Data File Path
+        PATH_SRC="${PATH_TMP}"
+        [ ! -d "${PATH_SRC}" ] && break
+        # Source Data File name
+        SRC_FILENAME="${ISP_DATA_0%.*}.dat_${SRC_INDEX}"
+        [ "${IPV_TYPE}" != "ipv4" ] && SRC_FILENAME="${ISP_IPV6_DATA_0%.*}.dat_${SRC_INDEX}"
+        [ ! -f "${PATH_SRC}/${SRC_FILENAME}" ] && break
+        # Destination data file path
+        PATH_DST="${PATH_TMP}"
+        [ ! -d "${PATH_DST}" ] && break
+        # IP Address Information Details Query Host
+        [ -z "${WHOIS_HOST}" ] && break
+        # Maximum Number Of Retries After IP Address Query Failure
+        ! echo "${RETRY_NUM}" | grep -qE '^[0-9][0-9]*$' && break
+        RETRY_NUM="$( printf "%u\n" "${RETRY_NUM}" )"
+        return "0"
+    done
+    echo "$( date +"%F %T" ) [$$]:" "Illegal call. Bye ~ !!!"
+    return "1"
 }
 
 init_isp_data_buf() {
@@ -166,12 +174,8 @@ get_isp_data() {
 
 # -------------- Script Execution ---------------
 
-while true
-do
-    init_param "${#}" || break
-    get_isp_data
-    break
-done
+init_param "${#}" "${0}" || exit "1"
+get_isp_data || exit "1"
 
 exit "0"
 
