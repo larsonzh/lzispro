@@ -369,6 +369,10 @@ init_param() {
             break
         }
         PARA_QUERY_PROC_NUM="$( printf "%u\n" "${PARA_QUERY_PROC_NUM}" )"
+        [ "${PARA_QUERY_PROC_NUM}" = "0" ] && {
+            lz_echo "PARA_QUERY_PROC_NUM cann't be less than 1."
+            lz_echo "Game Over !!!"
+        }
         ! echo "${RETRY_NUM}" | grep -qE '^[0-9][0-9]*$' && {
             lz_echo "RETRY_NUM isn't an decimal unsigned integer."
             lz_echo "Game Over !!!"
@@ -437,12 +441,14 @@ get_area_data() {
             | awk '{printf "%03u %03u %03u %03u %02u\n",$1,$2,$3,$4,$5}' \
             | sort -n -t ' ' -k 1 -k 2 -k 3 -k 4 -k 5 \
             | awk '{printf "%u.%u.%u.%u/%u\n",$1,$2,$3,$4,$5}' > "${PATH_TMP}/${3%.*}.dat"
+        sed -i '/^\([0-9]\{1,3\}[\.]\)\{3\}[0-9]\{1,3\}\([\/][0-9]\{1,2\}\)\{0,1\}$/!d' "${PATH_TMP}/${3%.*}.dat"
     elif [ "${2}" = "ipv6" ]; then
         [ "${IPV6_DATA}" != "0" ] && [ "${IPV6_DATA}" != "1" ] && [ "${IPV6_DATA}" != "2" ] && return "0"
         awk -F '|' '$1 == "apnic" \
             && $2 == "'"${1}"'" \
             && $3 == "ipv6" \
             {print $4"/"$5}' "${PATH_TMP}/${APNIC_IP_INFO%.*}.dat" > "${PATH_TMP}/${3%.*}.dat"
+        sed -i -e'/^[\:0-9a-f]\{0,4\}[\:][\:0-9a-f]*\([\/][0-9]\{1,3\}\)\{0,1\}$/!d' "${PATH_TMP}/${3%.*}.dat"
     fi
     [ -f "${PATH_TMP}/${3%.*}.dat" ] && {
         local total="$( grep -EIc '^([0-9]{1,3}[\.]){3}[0-9]{1,3}([\/][0-9]{1,2}){0,1}$|^[\:0-9a-f]{0,4}[\:][\:0-9a-f]*([\/][0-9]{1,3}){0,1}$' "${PATH_TMP}/${3%.*}.dat" )"
@@ -460,7 +466,6 @@ get_area_data() {
 
 split_data_file() {
     [ ! -f "${1}" ] && return "1"
-    ! echo "${PARA_QUERY_PROC_NUM}" | grep -qE '^[1-9][0-9]*$' && PARA_QUERY_PROC_NUM="4"
     local findex="0"
     until [ "${findex}" -ge "${PARA_QUERY_PROC_NUM}" ]
     do
@@ -469,24 +474,34 @@ split_data_file() {
     done
     local total="$( grep -Eic '^([0-9]{1,3}[\.]){3}[0-9]{1,3}([\/][0-9]{1,2}){0,1}$|^[\:0-9a-f]{0,4}[\:][\:0-9a-f]*([\/][0-9]{1,3}){0,1}$' "${1}" )"
     [ "${total}" = "0" ] && return "1"
-    if [ "${total}" -le "${PARA_QUERY_PROC_NUM}" ] || [ "${PARA_QUERY_PROC_NUM}" = "1" ]; then
+    if [ "${PARA_QUERY_PROC_NUM}" = "1" ]; then
         cp -p "${1}" "${1}_0"
         return "0"
     fi
     local max_line_num="$(( total / PARA_QUERY_PROC_NUM ))"
-    [ "$(( total % PARA_QUERY_PROC_NUM ))" != "0" ] && max_line_num="$(( max_line_num + 1 ))"
-    local bp="0" sp="0" nsp="$(( max_line_num * PARA_QUERY_PROC_NUM ))"
+    local remainder="$(( total % PARA_QUERY_PROC_NUM ))"
+    [ "${max_line_num}" = "0" ] && PARA_QUERY_PROC_NUM="${remainder}"
+    local bp="0" sp="0" count="0"
     findex="0"
     until [ "${findex}" -ge "${PARA_QUERY_PROC_NUM}" ]
     do
-        bp="$(( findex * max_line_num + 1 ))"
-        sp="$(( bp + max_line_num - 1 ))"
-        awk -v count="0" -v flag="1" -v bp="${bp}" -v sp="${sp}" -v nsp="${nsp}" '{
-            count++
-            if (count == bp) flag = "0"
-            if (flag == "0") print $1
-            if (NR == sp && count != nsp) exit
-        }' "${1}" >> "${1}_${findex}"
+        if [ "${remainder}" = "${PARA_QUERY_PROC_NUM}" ]; then
+            sed -n "$(( findex + 1 ))p" "${1}" > "${1}_${findex}"
+        elif [ "${remainder}" = "0" ]; then
+            bp="$(( findex * max_line_num + 1 ))"
+            sp="$(( bp + max_line_num - 1 ))"
+            sed -n "${bp},${sp}p" "${1}" > "${1}_${findex}"
+        else
+            if [ "${findex}" -lt "${remainder}" ]; then
+                bp="$(( findex * ( max_line_num + 1 ) + 1 ))"
+                sp="$(( bp + max_line_num ))"
+            else
+                bp="$(( remainder * ( max_line_num + 1 ) + count * max_line_num + 1 ))"
+                sp="$(( bp + max_line_num - 1 ))"
+                count="$(( count + 1 ))"
+            fi
+            sed -n "${bp},${sp}p" "${1}" > "${1}_${findex}"
+        fi
         ! grep -qEi '^([0-9]{1,3}[\.]){3}[0-9]{1,3}([\/][0-9]{1,2}){0,1}$|^[\:0-9a-f]{0,4}[\:][\:0-9a-f]*([\/][0-9]{1,3}){0,1}$' "${1}_${findex}" \
             && rm -f "${1}_${findex}"
         findex="$(( findex + 1 ))"
