@@ -254,8 +254,8 @@ compare_dir_name() {
 
 create_directory() {
     eval [ ! -d "\${${1}}" ] && {
-        mkdir -p "\${${1}}"
-        [ ! -d "\${${1}}" ] && {
+        eval mkdir -p "\${${1}}"
+        eval [ ! -d "\${${1}}" ] && {
             lz_echo "${1} directory creation failed."
             lz_echo "Game Over !!!"
             return "1"
