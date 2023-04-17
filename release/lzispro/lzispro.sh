@@ -978,10 +978,10 @@ show_data_path() {
     local elapsed_min="$( printf "%02u\n" "$(( ( ( end_time - BEGIN_TIME ) % 3600 ) / 60 ))" )"
     local elapsed_sec="$( printf "%02u\n" "$(( ( end_time - BEGIN_TIME ) % 60 ))" )"
     lz_echo "Elapsed Time           ${elapsed_hour}:${elapsed_min}:${elapsed_sec}"
+    RetVal="0"
 }
 
 show_tail() {
-    RetVal="0"
     lz_echo "---------------------------------------------"
     lz_echo "LZ ISPRO ${LZ_VERSION} script commands executed!"
     lz_echo
