@@ -219,6 +219,7 @@ forced_stop() {
     kill_father_processes
     kill_child_processes
     lz_echo "Forced Stop OK"
+    RetVal="0"
     return "0"
 }
 
@@ -980,6 +981,7 @@ show_data_path() {
 }
 
 show_tail() {
+    RetVal="0"
     lz_echo "---------------------------------------------"
     lz_echo "LZ ISPRO ${LZ_VERSION} script commands executed!"
     lz_echo
@@ -1015,6 +1017,6 @@ do
 done
 show_tail
 
-exit "0"
+exit "${RetVal:="1"}"
 
 #END
