@@ -205,3 +205,9 @@ lzispro.sh 脚本是本工具的主程序，可用文本编辑工具打开查看
 谁说国货不行，无意间又用 128 进程测了一下这个刚升级的桌面版系统，结果逆天，还特么怎么玩，一分多钟。。。
 
 ![lzispro_deepin](https://user-images.githubusercontent.com/73221087/232901131-7bcdc031-b14c-43f4-aac3-b207ef475d90.png)
+
+## Ubuntu
+
+最后用 Ubuntu 桌面版测了一下 128 个进程并行查询处理的情况，结果令人失望，比过去最快曾到过 2 分 51 秒慢的很多，有些离谱，可能此刻网络状况变差了。折腾一宿，感觉测的是网络状态，无语！
+
+![lzispro_ubuntu](https://user-images.githubusercontent.com/73221087/232913271-92722e0a-1a65-42d0-9911-6ffd90c46e2b.png)
