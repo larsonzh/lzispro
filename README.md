@@ -187,3 +187,9 @@ lzispro.sh 脚本是本工具的主程序，可用文本编辑工具打开查看
 2 分钟 8 秒，太快了！
 
 ![lzispro_centos](https://user-images.githubusercontent.com/73221087/232160640-e03aa2bf-afa6-4a25-8bff-6f5e69c47ba8.jpg)
+
+## Ubuntu
+
+使用装在 VirtualBox 虚拟机里的 Ubuntu Server，还是 128 个查询进程，开启进度条显示，过程中规中矩。扣除起始时快时慢的 APNIC IP 信息数据 FTP 下载时间，与 CentOS Stream、Rocky 性能区别不大。虚拟机里还有个 Ubuntu 桌面版和一个 Deepin 桌面版，跑起来总体上要比服务器版慢些。除去用于路由器的两个 Linux 系统，其他几个虚拟机中的 Linux 系统，内存、处理器、存储、网卡等都采用了相同配置，均使用中国移动千兆宽带网络。几轮测试下来，最大影响因素还是网络，一般在夜里，或凌晨前测试效果较好，白天大部分时间较慢，估计与业务繁忙程度、宽带网络节点中继效率及国际出口拥堵状况有关，所以最好找网络的垃圾时间折腾。
+
+![lzispro_ubuntu_srv](https://user-images.githubusercontent.com/73221087/232861999-617c2501-888c-4764-b10f-e0a59c9790be.png)
