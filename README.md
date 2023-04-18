@@ -188,7 +188,7 @@ lzispro.sh 脚本是本工具的主程序，可用文本编辑工具打开查看
 
 ![lzispro_centos](https://user-images.githubusercontent.com/73221087/232160640-e03aa2bf-afa6-4a25-8bff-6f5e69c47ba8.jpg)
 
-## Ubuntu
+## Ubuntu Server
 
 使用装在 VirtualBox 虚拟机里的 Ubuntu Server，还是 128 个查询进程，开启进度条显示，
 
@@ -208,6 +208,6 @@ lzispro.sh 脚本是本工具的主程序，可用文本编辑工具打开查看
 
 ## Ubuntu
 
-最后用 Ubuntu 桌面版测了一下 128 个进程并行查询处理的情况，结果令人失望，比过去最快曾到过 2 分 51 秒慢的很多，有些离谱，可能此刻网络状况变差了。折腾一宿，感觉测的是网络状态，无语！
+最后用 Ubuntu 桌面版测了一下 128 个进程并行查询处理的情况，结果令人失望，比过去最快曾到过 2 分 51 秒慢的很多，有些离谱，可能此刻网络状况变差，GitHub 也连不上了，啥破网络。折腾一宿，感觉测的是网络状态，无语！
 
 ![lzispro_ubuntu](https://user-images.githubusercontent.com/73221087/232913271-92722e0a-1a65-42d0-9911-6ffd90c46e2b.png)
