@@ -176,7 +176,7 @@ remove_div_data() {
     until [ "${index}" -gt "10" ]
     do
         eval fname="\${${prefix}${index}}"
-        find "${PATH_TMP}" -name "${fname%.*}.dat_*" -print0 2> /dev/null | xargs -0 -I {} rm -f {} > /dev/null 2>&1
+        find "${PATH_TMP}" -name "${fname%.*}.dat_*" -print0 | xargs -0 rm -f
         index="$(( index + 1 ))"
     done
 }
