@@ -87,7 +87,7 @@ Multi process parallel acquisition tool for IP address data of ISP network opera
   sudo dnf install -y epel-release
   sudo dnf update -y
   sudo dnf install -y gcc make perl kernel-devel kernel-headers bizp2 dkms whois
-  sudo dnf update kernel-\*
+  sudo dnf update kernel-*
   sudo reboot
 ```
 
