@@ -175,8 +175,8 @@ remove_div_data() {
     [ "${1}" != "ipv4" ] && prefix="ISP_IPV6_DATA_"
     until [ "${index}" -gt "10" ]
     do
-        eval fname="${PATH_TMP}/\${${prefix}${index}}"
-        rm -f "${fname%.*}.dat_"* 
+        eval fname="\${${prefix}${index}}"
+        find "${PATH_TMP}" -name "${fname%.*}.dat_*" -print0 2> /dev/null | xargs -0 -I {} rm -f {} > /dev/null 2>&1
         index="$(( index + 1 ))"
     done
 }

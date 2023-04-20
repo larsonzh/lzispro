@@ -7,13 +7,19 @@ Multi process parallel acquisition tool for IP address data of ISP network opera
 
 **v1.0.2**
 
-工具采用 Shell 脚本编写，参考并借鉴 clangcn（ https://github.com/clangcn/everyday-update-cn-isp-ip.git ）项目代码和思路，通过多进程并行处理技术，对信息检索和数据写入过程进行优化，极大提高 ISP 运营商分项地址数据生成效率，减少运行时间。在提供 IPv4 数据获取的同时，增加 IPv6 数据获取功能，以及基于 CIDR 网段聚合算法的 IPv4/6 CIDR 地址数据的生成功能。
+工具采用 Shell 脚本编写，参考并借鉴 clangcn（ https://github.com/clangcn/everyday-update-cn-isp-ip.git ）项目代码和思路，通过多进程并行处理技术，对信息检索和数据写入过程进行优化，极大提高 ISP 运营商分项地址数据生成效率，减少运行时间。
 
-本产品同时也是本人单进程的 lzispcn 项目（ https://github.com/larsonzh/lzispcn.git ）的多进程版本。
+在提供 IPv4 数据获取的同时，增加 IPv6 数据获取功能，以及基于 CIDR 网段聚合算法的 IPv4/6 CIDR 地址数据的生成功能。
+
+作为自主数据源产生的 CIDR 网段地址数据，非常适合路由器多线路宽带接入后的策略分流功能使用。
 
 脚本在 Linux 环境下使用，运行平台包括：Ubuntu，CentOS Stream，Rocky，Deepin，ASUSWRT-Merlin，OpenWrt，......
 
-适用的 Shell 类型：sh，ash，dash，bash
+适用的 Shell 类型：sh，ash，dash，bash，zsh，......
+
+本产品同时也是本人 lzispcn 项目（ https://github.com/larsonzh/lzispcn.git ）从单进程进化到多进程的升级版本。
+
+项目代码和算法全部开源公开，欢迎有闲人士研究、探索和教化，共同进步。
 
 # 功能
 - 从 APNIC 下载最新 IP 信息数据。
@@ -47,6 +53,20 @@ Multi process parallel acquisition tool for IP address data of ISP network opera
   * 澳门地区
 
   * 台湾地区
+
+# 下载地址
+
+- 百度网盘
+
+    https://pan.baidu.com/s/1w6AZCqDvK7Jb2qE-PTTADA
+
+- 国外开源代码托管平台（GitHub）
+
+    https://github.com/larsonzh
+
+- 国内开源代码托管平台（Gitee）
+
+    https://gitee.com/larsonzh
 
 # 安装及运行
 
@@ -194,15 +214,15 @@ lzispro.sh 脚本是本工具的主程序，可用文本编辑工具打开查看
 
 过程中规中矩，扣除起始时快时慢的 APNIC IP 信息数据 FTP 下载时间，大多数时候没有 CentOS Stream、Rocky 快。虚拟机里还有 Ubuntu 桌面版和一个 Deepin 桌面版，跑起来总体上要比服务器版慢。
 
-所有系统都升级到当前最新正式版本，除去两个 Linux 路由器专用系统，为表示公平，其他虚拟机中的 Linux 系统，内存、处理器、存储、网卡等均采用相同配置，都走中国移动的千兆宽带，运行中尽可能使用执行速度更快的 Shell 环境，如 sh、ash、dash，bash 比较臃肿，效率有些低，但也只在理论上，实际受其他影响，差别没想象的大。
+所有系统都升级到当前最新正式版本，除去两个 Linux 路由器专用系统，公平起见，所有虚拟机中的 Linux 系统，内存、处理器、存储、网卡等均采用相同配置，都走中国移动千兆宽带，运行中尽可能使用执行速度更快的 Shell 环境，如 sh、ash、dash，bash 比较臃肿，效率有些低，但也只在理论上，实际受其他影响，差别没想象的大。
 
-几轮测试下来，最大影响因素还是网络。一般夜里，或凌晨前测试效果较好，白天时段较慢，肯定与业务繁忙程度、网络节点中继效率及国际出口拥堵状况有关，最好找我区绝大部分人类活动能力较弱的垃圾网络时间折腾。由于 APNIC 负责亚太地区网络地址，主机活跃时间与我兔作息或许较为接近，如此这般吗？我也仅是打酱油时无意间特么猜测，总有些不规矩的家伙要反人类时间加班加点忙活，搞得到处都是鸡毛。。。
+几轮测试下来，最大影响因素还是网络。一般夜里，或凌晨前测试效果较好，白天时段较慢，肯定与业务繁忙程度、网络节点中继流量及国际出口拥堵状况有关，最好找我区绝大部分人类活动能力较弱的垃圾时间折腾。由于 APNIC 负责亚太地区网络地址，主机繁忙时间与我兔作息较为接近，事实如此？我也仅是打酱油时无意间特么猜测，总有些不规矩的家伙积极从事反人类的加班加点，搞得鸡毛都飞不动了。。。
 
 ![lzispro_ubuntu_srv](https://user-images.githubusercontent.com/73221087/232861999-617c2501-888c-4764-b10f-e0a59c9790be.png)
 
 ## Deepin
 
-谁说国货不行，无意间又用 128 进程测了一下这个刚升级的桌面版系统，结果逆天，还特么怎么玩，一分多钟。。。
+谁说国货不行，无意间又用 128 进程测了一下这个刚升级的桌面版系统，屌爆逆天，还特么怎么玩，一分多钟。。。
 
 ![lzispro_deepin](https://user-images.githubusercontent.com/73221087/232901131-7bcdc031-b14c-43f4-aac3-b207ef475d90.png)
 
