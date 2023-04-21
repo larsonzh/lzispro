@@ -487,22 +487,20 @@ split_data_file() {
     until [ "${findex}" -ge "${PARA_QUERY_PROC_NUM}" ]
     do
         if [ "${remainder}" = "${PARA_QUERY_PROC_NUM}" ]; then
-            sed -n "$(( findex + 1 ))p" "${1}" > "${1}_${findex}"
+            bp="$(( findex + 1 ))"
+            sp="${bp}"
         elif [ "${remainder}" = "0" ]; then
             bp="$(( findex * max_line_num + 1 ))"
             sp="$(( bp + max_line_num - 1 ))"
-            sed -n "${bp},${sp}p" "${1}" > "${1}_${findex}"
+        elif [ "${findex}" -lt "${remainder}" ]; then
+            bp="$(( findex * ( max_line_num + 1 ) + 1 ))"
+            sp="$(( bp + max_line_num ))"
         else
-            if [ "${findex}" -lt "${remainder}" ]; then
-                bp="$(( findex * ( max_line_num + 1 ) + 1 ))"
-                sp="$(( bp + max_line_num ))"
-            else
-                bp="$(( remainder * ( max_line_num + 1 ) + count * max_line_num + 1 ))"
-                sp="$(( bp + max_line_num - 1 ))"
-                count="$(( count + 1 ))"
-            fi
-            sed -n "${bp},${sp}p" "${1}" > "${1}_${findex}"
+            bp="$(( remainder * ( max_line_num + 1 ) + count * max_line_num + 1 ))"
+            sp="$(( bp + max_line_num - 1 ))"
+            count="$(( count + 1 ))"
         fi
+        sed -n "${bp},${sp}p" "${1}" > "${1}_${findex}"
         ! grep -qEi '^([0-9]{1,3}[\.]){3}[0-9]{1,3}([\/][0-9]{1,2}){0,1}$|^[\:0-9a-f]{0,4}[\:][\:0-9a-f]*([\/][0-9]{1,3}){0,1}$' "${1}_${findex}" \
             && rm -f "${1}_${findex}"
         findex="$(( findex + 1 ))"
