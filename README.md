@@ -132,6 +132,8 @@ Multi process parallel acquisition tool for IP address data of ISP network opera
 
 ```markdown
   假设当前位于 lzispro 目录
+  启动脚本         ./lzispro.sh
+  强制停止         ./lzispro.sh stop
 ```
 
 1. 通过 Shell 终端启动脚本后，在操作过程中不要关闭终端窗口，这会导致程序执行过程意外中断。为防止远程终端窗口在长时间运行中意外掉线或关闭，建议在服务端的 Linux 系统中安装 screen 全屏幕窗口管理命令模块，并在 screen 会话中执行脚本运行命令，可确保终端窗口掉线或关闭后，也能在 screen 会话后台完成脚本运行。
