@@ -79,6 +79,7 @@ Multi process parallel acquisition tool for IP address data of ISP network opera
 ```markdown
   sudo apt update
   sudo apt install whois
+  sudo apt install screen # 可选项
 ```
 
 - CentOS Stream | Rocky
@@ -88,6 +89,7 @@ Multi process parallel acquisition tool for IP address data of ISP network opera
   sudo dnf update -y
   sudo dnf install -y gcc make perl kernel-devel kernel-headers bizp2 dkms whois
   sudo dnf update kernel-*
+  sudo dnf install -y screen # 可选项
   sudo reboot
 ```
 
@@ -100,6 +102,7 @@ Multi process parallel acquisition tool for IP address data of ISP network opera
   选择安装 Entware 到 USB 盘。
   opkg update
   opkg install whois
+  opkg install screen # 可选项
 ```
 
 - OpenWrt
@@ -108,6 +111,7 @@ Multi process parallel acquisition tool for IP address data of ISP network opera
   opkg update
   opkg install whois
   opkg install wget-ssl
+  opkg install screen # 可选项
 ```
 
 其他 Linux 平台系统依此类推。
