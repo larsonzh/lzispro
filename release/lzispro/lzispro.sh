@@ -1,5 +1,5 @@
 #!/bin/sh
-# lzispro.sh v1.0.2
+# lzispro.sh v1.0.3
 # By LZ 妙妙呜 (larsonzhang@gmail.com)
 
 # Multi process parallel acquisition tool for IP address data of ISP network operators in China
@@ -144,7 +144,7 @@ SYSLOG=""
 # Forced Stop Command Word
 FORCED_STOP_CMD="stop"
 
-LZ_VERSION="v1.0.2"
+LZ_VERSION="v1.0.3"
 
 # ------------------ Function -------------------
 
@@ -440,7 +440,7 @@ get_area_data() {
             {print $4" "32-log($5)/log(2)}' "${PATH_TMP}/${APNIC_IP_INFO%.*}.dat" \
             | sed 's/[\.]/ /g' \
             | awk '{printf "%03u %03u %03u %03u %02u\n",$1,$2,$3,$4,$5}' \
-            | sort -n -t ' ' -k 1 -k 2 -k 3 -k 4 -k 5 \
+            | sort -nu -t ' ' -k 1 -k 2 -k 3 -k 4 -k 5 \
             | awk '{printf "%u.%u.%u.%u/%u\n",$1,$2,$3,$4,$5}' > "${PATH_TMP}/${3%.*}.dat"
         sed -i '/^\([0-9]\{1,3\}[\.]\)\{3\}[0-9]\{1,3\}\([\/][0-9]\{1,2\}\)\{0,1\}$/!d' "${PATH_TMP}/${3%.*}.dat"
     elif [ "${2}" = "ipv6" ]; then
@@ -448,7 +448,8 @@ get_area_data() {
         awk -F '|' '$1 == "apnic" \
             && $2 == "'"${1}"'" \
             && $3 == "ipv6" \
-            {print $4"/"$5}' "${PATH_TMP}/${APNIC_IP_INFO%.*}.dat" > "${PATH_TMP}/${3%.*}.dat"
+            {print $4"/"$5}' "${PATH_TMP}/${APNIC_IP_INFO%.*}.dat" \
+            | awk '!i[$0]++' > "${PATH_TMP}/${3%.*}.dat"
         sed -i -e'/^[\:0-9a-f]\{0,4\}[\:][\:0-9a-f]*\([\/][0-9]\{1,3\}\)\{0,1\}$/!d' "${PATH_TMP}/${3%.*}.dat"
     fi
     [ -f "${PATH_TMP}/${3%.*}.dat" ] && {
@@ -719,7 +720,7 @@ get_ipv6_extend() {
         if (val ~ /^:/) val = "0"val
         print tolower(val)":"$2
     }' "${1}" | awk -F ':' 'NF == 9 {printf "%05d %05d %05d %05d %05d %05d %05d %05d %05d\n","0x"$1,"0x"$2,"0x"$3,"0x"$4,"0x"$5,"0x"$6,"0x"$7,"0x"$8,$9}' \
-    | sort -n -t ' ' -k 1 -k 2 -k 3 -k 4 -k 5 -k 6 -k 7 -k 8 -k 9 \
+    | sort -nu -t ' ' -k 1 -k 2 -k 3 -k 4 -k 5 -k 6 -k 7 -k 8 -k 9 \
     | awk 'NF == 9 {printf "%x:%x:%x:%x:%x:%x:%x:%x/%u\n",$1,$2,$3,$4,$5,$6,$7,$8,$9}'
 }
 
@@ -943,7 +944,7 @@ get_file_time_stamp() {
 
 show_header() {
     BEGIN_TIME="$( date +%s -d "$( date +"%F %T" )" )"
-    [ -z "${LZ_VERSION}" ] && LZ_VERSION="v1.0.2"
+    [ -z "${LZ_VERSION}" ] && LZ_VERSION="v1.0.3"
     lz_echo
     lz_echo "LZ ISPRO ${LZ_VERSION} script commands start......"
     lz_echo "By LZ (larsonzhang@gmail.com)"
