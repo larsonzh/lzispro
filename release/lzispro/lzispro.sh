@@ -151,8 +151,8 @@ REGEX_SED_IPV4_NET="$( echo "${REGEX_IPV4_NET}" | sed 's/[(){}|+?]/\\&/g' )"
 REGEX_IPV6_NET='(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:([0-9a-fA-F]{1,4})'
 REGEX_IPV6_NET="${REGEX_IPV6_NET}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}"
 REGEX_IPV6_NET="${REGEX_IPV6_NET}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}"
-REGEX_IPV6_NET="${REGEX_IPV6_NET}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{1,4}){0,4}%[0-9a-zA-Z]+"
-REGEX_IPV6_NET="${REGEX_IPV6_NET}|::(ffff(:0{1,4})?:)?${REGEX_IPV4}|([0-9a-fA-F]{1,4}:){1,4}:${REGEX_IPV4})([\/]([1-9]|([1-9]|1[0-1])[0-9]|12[0-8]))?"
+REGEX_IPV6_NET="${REGEX_IPV6_NET}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|[fF][eE]80:(:[0-9a-fA-F]{1,4}){0,4}%[0-9a-zA-Z]+"
+REGEX_IPV6_NET="${REGEX_IPV6_NET}|::([fF]{4}(:0{1,4})?:)?${REGEX_IPV4}|([0-9a-fA-F]{1,4}:){1,4}:${REGEX_IPV4})([\/]([1-9]|([1-9]|1[0-1])[0-9]|12[0-8]))?"
 REGEX_SED_IPV6_NET="$( echo "${REGEX_IPV6_NET}" | sed 's/[(){}|+?]/\\&/g' )"
 
 LZ_VERSION="v1.0.4"
