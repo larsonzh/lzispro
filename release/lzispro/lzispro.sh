@@ -1,5 +1,5 @@
 #!/bin/sh
-# lzispro.sh v1.0.3
+# lzispro.sh v1.0.4
 # By LZ 妙妙呜 (larsonzhang@gmail.com)
 
 # Multi process parallel acquisition tool for IP address data of ISP network operators in China
@@ -65,7 +65,7 @@ ISP_DATA_0="lz_all_cn.txt"
 ISP_DATA_1="lz_chinatelecom.txt"
 ISP_DATA_2="lz_unicom_cnc.txt"
 ISP_DATA_3="lz_cmcc.txt"
-ISP_DATA_4="lz_crtc.txt"
+ISP_DATA_4="lz_chinabtn.txt"
 ISP_DATA_5="lz_cernet.txt"
 ISP_DATA_6="lz_gwbn.txt"
 ISP_DATA_7="lz_othernet.txt"
@@ -78,7 +78,7 @@ ISP_CIDR_DATA_0="lz_all_cn_cidr.txt"
 ISP_CIDR_DATA_1="lz_chinatelecom_cidr.txt"
 ISP_CIDR_DATA_2="lz_unicom_cnc_cidr.txt"
 ISP_CIDR_DATA_3="lz_cmcc_cidr.txt"
-ISP_CIDR_DATA_4="lz_crtc_cidr.txt"
+ISP_CIDR_DATA_4="lz_chinabtn_cidr.txt"
 ISP_CIDR_DATA_5="lz_cernet_cidr.txt"
 ISP_CIDR_DATA_6="lz_gwbn_cidr.txt"
 ISP_CIDR_DATA_7="lz_othernet_cidr.txt"
@@ -98,7 +98,7 @@ ISP_IPV6_DATA_0="lz_all_cn_ipv6.txt"
 ISP_IPV6_DATA_1="lz_chinatelecom_ipv6.txt"
 ISP_IPV6_DATA_2="lz_unicom_cnc_ipv6.txt"
 ISP_IPV6_DATA_3="lz_cmcc_ipv6.txt"
-ISP_IPV6_DATA_4="lz_crtc_ipv6.txt"
+ISP_IPV6_DATA_4="lz_chinabtn_ipv6.txt"
 ISP_IPV6_DATA_5="lz_cernet_ipv6.txt"
 ISP_IPV6_DATA_6="lz_gwbn_ipv6.txt"
 ISP_IPV6_DATA_7="lz_othernet_ipv6.txt"
@@ -107,17 +107,17 @@ ISP_IPV6_DATA_9="lz_mo_ipv6.txt"
 ISP_IPV6_DATA_10="lz_tw_ipv6.txt"
 
 # CIDR Aggregated IPv6 Data Target File Name
-ISP_IPV6_CIDR_DATA_0="lz_all_cn_cidr_ipv6.txt"
-ISP_IPV6_CIDR_DATA_1="lz_chinatelecom_cidr_ipv6.txt"
-ISP_IPV6_CIDR_DATA_2="lz_unicom_cnc_cidr_ipv6.txt"
-ISP_IPV6_CIDR_DATA_3="lz_cmcc_cidr_ipv6.txt"
-ISP_IPV6_CIDR_DATA_4="lz_crtc_cidr_ipv6.txt"
-ISP_IPV6_CIDR_DATA_5="lz_cernet_cidr_ipv6.txt"
-ISP_IPV6_CIDR_DATA_6="lz_gwbn_cidr_ipv6.txt"
-ISP_IPV6_CIDR_DATA_7="lz_othernet_cidr_ipv6.txt"
-ISP_IPV6_CIDR_DATA_8="lz_hk_cidr_ipv6.txt"
-ISP_IPV6_CIDR_DATA_9="lz_mo_cidr_ipv6.txt"
-ISP_IPV6_CIDR_DATA_10="lz_tw_cidr_ipv6.txt"
+ISP_IPV6_CIDR_DATA_0="lz_all_cn_ipv6_cidr.txt"
+ISP_IPV6_CIDR_DATA_1="lz_chinatelecom_ipv6_cidr.txt"
+ISP_IPV6_CIDR_DATA_2="lz_unicom_cnc_ipv6_cidr.txt"
+ISP_IPV6_CIDR_DATA_3="lz_cmcc_ipv6_cidr.txt"
+ISP_IPV6_CIDR_DATA_4="lz_chinabtn_ipv6_cidr.txt"
+ISP_IPV6_CIDR_DATA_5="lz_cernet_ipv6_cidr.txt"
+ISP_IPV6_CIDR_DATA_6="lz_gwbn_ipv6_cidr.txt"
+ISP_IPV6_CIDR_DATA_7="lz_othernet_ipv6_cidr.txt"
+ISP_IPV6_CIDR_DATA_8="lz_hk_ipv6_cidr.txt"
+ISP_IPV6_CIDR_DATA_9="lz_mo_ipv6_cidr.txt"
+ISP_IPV6_CIDR_DATA_10="lz_tw_ipv6_cidr.txt"
 
 # APNIC IP Information Download URL
 DOWNLOAD_URL="http://ftp.apnic.net/apnic/stats/apnic/delegated-apnic-latest"
@@ -144,7 +144,18 @@ SYSLOG=""
 # Forced Stop Command Word
 FORCED_STOP_CMD="stop"
 
-LZ_VERSION="v1.0.3"
+# IP Address Regular Expression
+REGEX_IPV4_NET='(((25[0-5]|(2[0-4]|1[0-9]|[1-9])?[0-9])[\.]){3}(25[0-5]|(2[0-4]|1[0-9]|[1-9])?[0-9])([\/]([1-9]|[1-2][0-9]|3[0-2]))?|0[\.]0[\.]0[\.]0[\/]0)'
+REGEX_IPV4="$( echo "${REGEX_IPV4_NET%"([\/]("*}" | sed 's/^(//' )"
+REGEX_SED_IPV4_NET="$( echo "${REGEX_IPV4_NET}" | sed 's/[(){}|+?]/\\&/g' )"
+REGEX_IPV6_NET='(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:([0-9a-fA-F]{1,4})'
+REGEX_IPV6_NET="${REGEX_IPV6_NET}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}"
+REGEX_IPV6_NET="${REGEX_IPV6_NET}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}"
+REGEX_IPV6_NET="${REGEX_IPV6_NET}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{1,4}){0,4}%[0-9a-zA-Z]+"
+REGEX_IPV6_NET="${REGEX_IPV6_NET}|::(ffff(:0{1,4})?:)?${REGEX_IPV4}|([0-9a-fA-F]{1,4}:){1,4}:${REGEX_IPV4})([\/]([1-9]|([1-9]|1[0-1])[0-9]|12[0-8]))?"
+REGEX_SED_IPV6_NET="$( echo "${REGEX_IPV6_NET}" | sed 's/[(){}|+?]/\\&/g' )"
+
+LZ_VERSION="v1.0.4"
 
 # ------------------ Function -------------------
 
@@ -401,6 +412,8 @@ export_env_var() {
     export ISP_DATA_SCRIPT
     export WHOIS_HOST
     export RETRY_NUM
+    export REGEX_IPV4_NET
+    export REGEX_IPV6_NET
 }
 
 init_isp_data_script() {
@@ -422,7 +435,7 @@ get_apnic_info() {
     if [ ! -f "${PATH_TMP}/${APNIC_IP_INFO%.*}.dat" ]; then
         lz_echo "${APNIC_IP_INFO} Failed. Game Over !!!"
         return "1"
-    elif ! grep -qE '[\|]([0-9]{1,3}[\.]){3}[0-9]{1,3}([\/][0-9]{1,2}){0,1}[\|]' "${PATH_TMP}/${APNIC_IP_INFO%.*}.dat"; then
+    elif ! grep -qE "[\|]${REGEX_IPV4_NET}[\|]" "${PATH_TMP}/${APNIC_IP_INFO%.*}.dat"; then
         lz_echo "${APNIC_IP_INFO} Failed. Game Over !!!"
         rm -f "${PATH_TMP}/${APNIC_IP_INFO%.*}.dat"
         return "1"
@@ -442,7 +455,7 @@ get_area_data() {
             | awk '{printf "%03u %03u %03u %03u %02u\n",$1,$2,$3,$4,$5}' \
             | sort -nu -t ' ' -k 1 -k 2 -k 3 -k 4 -k 5 \
             | awk '{printf "%u.%u.%u.%u/%u\n",$1,$2,$3,$4,$5}' > "${PATH_TMP}/${3%.*}.dat"
-        sed -i '/^\([0-9]\{1,3\}[\.]\)\{3\}[0-9]\{1,3\}\([\/][0-9]\{1,2\}\)\{0,1\}$/!d' "${PATH_TMP}/${3%.*}.dat"
+        sed -i "/^${REGEX_SED_IPV4_NET}$/!d" "${PATH_TMP}/${3%.*}.dat"
     elif [ "${2}" = "ipv6" ]; then
         [ "${IPV6_DATA}" != "0" ] && [ "${IPV6_DATA}" != "1" ] && [ "${IPV6_DATA}" != "2" ] && return "0"
         awk -F '|' '$1 == "apnic" \
@@ -450,10 +463,10 @@ get_area_data() {
             && $3 == "ipv6" \
             {print $4"/"$5}' "${PATH_TMP}/${APNIC_IP_INFO%.*}.dat" \
             | awk '!i[$0]++' > "${PATH_TMP}/${3%.*}.dat"
-        sed -i -e'/^[\:0-9a-f]\{0,4\}[\:][\:0-9a-f]*\([\/][0-9]\{1,3\}\)\{0,1\}$/!d' "${PATH_TMP}/${3%.*}.dat"
+        sed -i -e "/^${REGEX_SED_IPV6_NET}$/!d" "${PATH_TMP}/${3%.*}.dat"
     fi
     [ -f "${PATH_TMP}/${3%.*}.dat" ] && {
-        local total="$( grep -EIc '^([0-9]{1,3}[\.]){3}[0-9]{1,3}([\/][0-9]{1,2}){0,1}$|^[\:0-9a-f]{0,4}[\:][\:0-9a-f]*([\/][0-9]{1,3}){0,1}$' "${PATH_TMP}/${3%.*}.dat" )"
+        local total="$( grep -EIc "^(${REGEX_IPV4_NET}|${REGEX_IPV6_NET})$" "${PATH_TMP}/${3%.*}.dat" )"
         if [ "${total}" = "0" ]; then
             rm -f "${PATH_TMP}/${3%.*}.dat"
             lz_echo "${3} Failed. Game Over !!!"
@@ -474,7 +487,7 @@ split_data_file() {
         eval [ -f "\${1}_${findex}" ] && eval rm -f "\${1}_${findex}"
         findex="$(( findex + 1 ))"
     done
-    local total="$( grep -Eic '^([0-9]{1,3}[\.]){3}[0-9]{1,3}([\/][0-9]{1,2}){0,1}$|^[\:0-9a-f]{0,4}[\:][\:0-9a-f]*([\/][0-9]{1,3}){0,1}$' "${1}" )"
+    local total="$( grep -Eic "^(${REGEX_IPV4_NET}|${REGEX_IPV6_NET})$" "${1}" )"
     [ "${total}" = "0" ] && return "1"
     if [ "${PARA_QUERY_PROC_NUM}" = "1" ]; then
         cp -p "${1}" "${1}_0"
@@ -502,7 +515,7 @@ split_data_file() {
             count="$(( count + 1 ))"
         fi
         sed -n "${bp},${sp}p" "${1}" > "${1}_${findex}"
-        ! grep -qEi '^([0-9]{1,3}[\.]){3}[0-9]{1,3}([\/][0-9]{1,2}){0,1}$|^[\:0-9a-f]{0,4}[\:][\:0-9a-f]*([\/][0-9]{1,3}){0,1}$' "${1}_${findex}" \
+        ! grep -qEi "^(${REGEX_IPV4_NET}|${REGEX_IPV6_NET})$" "${1}_${findex}" \
             && rm -f "${1}_${findex}"
         findex="$(( findex + 1 ))"
     done
@@ -549,7 +562,7 @@ check_isp_data() {
     do
         eval fname="\${${prefix}${index}}"
         if [ -f "${PATH_TMP}/${fname%.*}.dat" ]; then
-            total="$( grep -Eic '^([0-9]{1,3}[\.]){3}[0-9]{1,3}([\/][0-9]{1,2}){0,1}$|^[\:0-9a-f]{0,4}[\:][\:0-9a-f]*([\/][0-9]{1,3}){0,1}$' "${PATH_TMP}/${fname%.*}.dat" )"
+            total="$( grep -Eic "^(${REGEX_IPV4_NET}|${REGEX_IPV6_NET})$" "${PATH_TMP}/${fname%.*}.dat" )"
             if [ "${total}" = "0" ]; then
                 rm -f "${PATH_TMP}/${fname%.*}.dat"
                 lz_echo "${fname} Failed. Game Over !!!"
@@ -621,8 +634,8 @@ aggregate_ipv4_data() {
     if [ ! -f "${1}" ] || [ ! -d "${2%/*}" ]; then return "1"; fi;
     cp -p "${1}" "${2}"
     [ ! -f "${2}" ] && return "1"
-    sed -i '/^\([0-9]\{1,3\}[\.]\)\{3\}[0-9]\{1,3\}\([\/][0-9]\{1,2\}\)\{0,1\}$/!d' "${2}"
-    ! grep -qE '^([0-9]{1,3}[\.]){3}[0-9]{1,3}([\/][0-9]{1,2}){0,1}$' "${2}" && { rm -f "${2}"; return "1"; }
+    sed -i "/^${REGEX_SED_IPV4_NET}$/!d" "${2}"
+    ! grep -qE "^${REGEX_IPV4_NET}$" "${2}" && { rm -f "${2}"; return "1"; }
     local index="0" mask="24" IP_BUF="" step="2" ip_item="" addr4="" addr3="" net3="" addr2="" net2="" addr1="" net1="" count="0"
     [ "${PROGRESS_BAR}" = "0" ] && echo -n "."
     until [ "${index}" -ge "24" ]
@@ -684,7 +697,7 @@ IP_BUF_INPUT
     done
     sed -i '/#/d' "${2}"
     [ "${PROGRESS_BAR}" = "0" ] && echo "."
-    ! grep -qE '^([0-9]{1,3}[\.]){3}[0-9]{1,3}([\/][0-9]{1,2}){0,1}$' "${2}" && { rm -f "${2}"; return "1"; }
+    ! grep -qE "^${REGEX_IPV4_NET}$" "${2}" && { rm -f "${2}"; return "1"; }
     return "0"
 }
 
@@ -698,7 +711,7 @@ get_ipv4_cidr_data() {
         eval sfname="\${ISP_DATA_${index}}"
         eval fname="\${ISP_CIDR_DATA_${index}}"
         if aggregate_ipv4_data "${PATH_TMP}/${sfname%.*}.dat" "${PATH_TMP}/${fname%.*}.dat"; then
-            total="$( grep -Ec '^([0-9]{1,3}[\.]){3}[0-9]{1,3}([\/][0-9]{1,2}){0,1}$' "${PATH_TMP}/${fname%.*}.dat" )"
+            total="$( grep -Ec "^${REGEX_IPV4_NET}$" "${PATH_TMP}/${fname%.*}.dat" )"
             lz_echo "${fname} ${total} OK"
         else
             lz_echo "${fname} Failed. Game Over !!!"
@@ -728,8 +741,8 @@ aggregate_ipv6_data() {
     if [ ! -f "${1}" ] || [ ! -d "${2%/*}" ]; then return "1"; fi;
     get_ipv6_extend "${1}" > "${2}"
     [ ! -f "${2}" ] && return "1"
-    sed -i -e'/^[\:0-9a-f]\{0,4\}[\:][\:0-9a-fA-F]*\([\/][0-9]\{1,3\}\)\{0,1\}$/!d' -e '/[\:][\:]/d' "${2}"
-    ! grep -qEi '^[\:0-9a-f]{0,4}[\:][\:0-9a-f]*([\/][0-9]{1,3}){0,1}$' "${2}" && { rm -f "${2}"; return "1"; }
+    sed -i -e "/^${REGEX_SED_IPV6_NET}$/!d" -e '/[\:][\:]/d' "${2}"
+    ! grep -qEi "^${REGEX_IPV6_NET}$" "${2}" && { rm -f "${2}"; return "1"; }
     local index="0" mask="112" IP_BUF="" step="2" ip_item="" count="0"
     local addr8="" addr7="" net7="" addr6="" net6="" addr5="" net5="" addr4="" net4="" addr3="" net3="" addr2="" net2="" addr1="" net1=""
     [ "${PROGRESS_BAR}" = "0" ] && echo -n "."
@@ -814,7 +827,7 @@ IP_BUF_INPUT
     [ "${PROGRESS_BAR}" = "0" ] && echo -n "."
     sed -i -e '/#/d' -e 's/\([:][0]\)\{2,7\}/::/' -e 's/:::/::/' -e 's/^0::/::/' -e '/^[ ]*$/d' "${2}"
     [ "${PROGRESS_BAR}" = "0" ] && echo "."
-    ! grep -qEi '^[\:0-9a-f]{0,4}[\:][\:0-9a-f]*([\/][0-9]{1,3}){0,1}$' "${2}" && { rm -f "${2}"; return "1"; }
+    ! grep -qEi "^${REGEX_IPV6_NET}$" "${2}" && { rm -f "${2}"; return "1"; }
     return "0"
 }
 
@@ -828,7 +841,7 @@ get_ipv6_cidr_data() {
         eval sfname="\${ISP_IPV6_DATA_${index}}"
         eval fname="\${ISP_IPV6_CIDR_DATA_${index}}"
         if aggregate_ipv6_data "${PATH_TMP}/${sfname%.*}.dat" "${PATH_TMP}/${fname%.*}.dat"; then
-            total="$( grep -Eic '^[\:0-9a-f]{0,4}[\:][\:0-9a-f]*([\/][0-9]{1,3}){0,1}$' "${PATH_TMP}/${fname%.*}.dat" )"
+            total="$( grep -Eic "^${REGEX_IPV6_NET}$" "${PATH_TMP}/${fname%.*}.dat" )"
             lz_echo "${fname} ${total} OK"
         else
             lz_echo "${fname} Failed. Game Over !!!"
@@ -944,7 +957,7 @@ get_file_time_stamp() {
 
 show_header() {
     BEGIN_TIME="$( date +%s -d "$( date +"%F %T" )" )"
-    [ -z "${LZ_VERSION}" ] && LZ_VERSION="v1.0.3"
+    [ -z "${LZ_VERSION}" ] && LZ_VERSION="v1.0.4"
     lz_echo
     lz_echo "LZ ISPRO ${LZ_VERSION} script commands start......"
     lz_echo "By LZ (larsonzhang@gmail.com)"

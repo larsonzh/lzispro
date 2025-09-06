@@ -1,5 +1,5 @@
 #!/bin/sh
-# lzispdata.sh v1.0.3
+# lzispdata.sh v1.0.4
 # By LZ 妙妙呜 (larsonzhang@gmail.com)
 
 # ISP Data Process Script
@@ -71,23 +71,24 @@ unset_isp_data_buf() {
 
 get_isp_details() {
     whois -h "${WHOIS_HOST}" "${1%/*}" \
-        | awk 'NR == "1" || $1 ~ /netname|mnt-|e-mail/ {if (NR == "1" && $2 != "'"[${WHOIS_HOST}]"'") exit; else print $2}'
+        | awk 'NR == "1" || tolower($1) ~ /^(netname|mnt-|e-mail)/ {if (NR == "1" && tolower($2) != tolower("'"[${WHOIS_HOST}]"'")) exit; else print $2}'
 }
 
 write_isp_data_buf() {
-    # CNC
-    # CHINAUNICOM
+    # CNC & CHINAUNICOM
     echo "${1}" | grep -qEi 'CNC|UNICOM' && { DATA_BUF_2="${DATA_BUF_2}n${2}"; return; }
     # CHINATELECOM
     echo "${1}" | grep -qEi 'CHINANET|TELECOM|BJTEL' && { DATA_BUF_1="${DATA_BUF_1}n${2}"; return; }
-    # CHINAMOBILE
-    echo "${1}" | grep -qEi 'CMCC|CMNET' && { DATA_BUF_3="${DATA_BUF_3}n${2}"; return; }
-    # CRTC
-    echo "${1}" | grep -qEi 'CRTC' && { DATA_BUF_4="${DATA_BUF_4}n${2}"; return; }
+    # CHINAMOBILE & CRTC
+    echo "${1}" | grep -vi 'ZXLYCMCC' | grep -qEi 'CMCC' && { DATA_BUF_3="${DATA_BUF_3}n${2}"; return; }
+    echo "${1}" | grep -vi 'cmidc@china-motion.com' | grep -qEi 'CMNET' && { DATA_BUF_3="${DATA_BUF_3}n${2}"; return; }
+    echo "${1}" | grep -qEi 'CRTC|CHINAMOBILE|CTTNET|CTTSDNET|TIETONG|CTTSH' && { DATA_BUF_3="${DATA_BUF_3}n${2}"; return; }
+    # CBTN
+    echo "${1}" | grep -qEi 'CHINABTN|HEBBTN|TJBTN|NXBCTV' && { DATA_BUF_4="${DATA_BUF_4}n${2}"; return; }
     # CERNET
     echo "${1}" | grep -qEi 'CERNET' && { DATA_BUF_5="${DATA_BUF_5}n${2}"; return; }
     # GWBN
-    echo "${1}" | grep -qEi 'GWBN|GXBL|DXTNET|BITNET|ZBTNET|drpeng|btte' && { DATA_BUF_6="${DATA_BUF_6}n${2}"; return; }
+    echo "${1}" | grep -qEi 'GWNET|GWBN|GXBL|WSNET|DXTNET|BITNET|ZBTNET|drpeng|btte' && { DATA_BUF_6="${DATA_BUF_6}n${2}"; return; }
     # OTHER
     DATA_BUF_7="${DATA_BUF_7}n${2}"
 }
@@ -124,9 +125,9 @@ failure_handling() {
 add_isp_data() {
     local DATA_BUF="" retval="0" count="0" line="" isp_info="" retry="0"
     if [ "${IPV_TYPE}" = "ipv4" ]; then
-        DATA_BUF="$( grep -Eo '^([0-9]{1,3}[\.]){3}[0-9]{1,3}([\/][0-9]{1,2}){0,1}$' "${PATH_SRC}/${SRC_FILENAME}" )"
+        DATA_BUF="$( grep -Eo "^${REGEX_IPV4_NET}$" "${PATH_SRC}/${SRC_FILENAME}" )"
     else
-        DATA_BUF="$( grep -Eio '^[\:0-9a-f]{0,4}[\:][\:0-9a-f]*([\/][0-9]{1,3}){0,1}$' "${PATH_SRC}/${SRC_FILENAME}" )"
+        DATA_BUF="$( grep -Eio "^${REGEX_IPV6_NET}$" "${PATH_SRC}/${SRC_FILENAME}" )"
     fi
     while IFS= read -r line
     do
