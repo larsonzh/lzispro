@@ -1,5 +1,5 @@
 #!/bin/sh
-# lzispro.sh v1.0.4
+# lzispro.sh v1.0.5
 # By LZ 妙妙呜 (larsonzhang@gmail.com)
 
 # Multi process parallel acquisition tool for IP address data of ISP network operators in China
@@ -57,7 +57,7 @@ APNIC_IP_INFO="lz_apnic_ip_info.txt"
 # 0--Raw Data & CIDR Data (Default)
 # 1--Raw Data & Pure CIDR Data
 # 2--Raw Data
-# Other--Disable
+# Other--Disable (e.g., 5, 8, a, x, ...)
 IPV4_DATA="0"
 
 # China ISP IPv4 Raw Data Target File Name
@@ -90,8 +90,8 @@ ISP_CIDR_DATA_10="lz_tw_cidr.txt"
 # 0--Raw Data & CIDR Data
 # 1--Raw Data & Pure CIDR Data
 # 2--Raw Data (Default)
-# Other--Disable
-IPV6_DATA="2"
+# Other--Disable (e.g., 5, 8, a, x, ...)
+IPV6_DATA="0"
 
 # China ISP IPv6 Raw Data Target File Name
 ISP_IPV6_DATA_0="lz_all_cn_ipv6.txt"
@@ -126,15 +126,15 @@ DOWNLOAD_URL="http://ftp.apnic.net/apnic/stats/apnic/delegated-apnic-latest"
 WHOIS_HOST="whois.apnic.net"
 
 # Number of parallel query processing
-# Numbers 1 and above (e.g., 4, 8, 16, 24, 32, 48, 64, ...)
-PARA_QUERY_PROC_NUM="4"
+# Numbers 1 and above (e.g., 4, 8, 16, 24, 32, 40, 48, 56, 64, ...)
+PARA_QUERY_PROC_NUM="32"
 
 # Maximum Number Of Retries After IP Address Query Failure
 # 0--Unlimited, 5--Default
 RETRY_NUM="5"
 
 # Progress Bar
-# 0--Enable (Default), Other--Disable
+# 0--Enable (Default), Other--Disable (e.g., 5, 8, a, x, ...)
 PROGRESS_BAR="0"
 
 # System Event Log File
@@ -151,11 +151,11 @@ REGEX_SED_IPV4_NET="$( echo "${REGEX_IPV4_NET}" | sed 's/[(){}|+?]/\\&/g' )"
 REGEX_IPV6_NET='(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:([0-9a-fA-F]{1,4})'
 REGEX_IPV6_NET="${REGEX_IPV6_NET}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}"
 REGEX_IPV6_NET="${REGEX_IPV6_NET}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}"
-REGEX_IPV6_NET="${REGEX_IPV6_NET}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|[fF][eE]80:(:[0-9a-fA-F]{1,4}){0,4}%[0-9a-zA-Z]+"
-REGEX_IPV6_NET="${REGEX_IPV6_NET}|::([fF]{4}(:0{1,4})?:)?${REGEX_IPV4}|([0-9a-fA-F]{1,4}:){1,4}:${REGEX_IPV4})([\/]([1-9]|([1-9]|1[0-1])[0-9]|12[0-8]))?"
+REGEX_IPV6_NET="${REGEX_IPV6_NET}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:))"
+REGEX_IPV6_NET="${REGEX_IPV6_NET}([\/]([1-9]|([1-9]|1[0-1])[0-9]|12[0-8]))?"
 REGEX_SED_IPV6_NET="$( echo "${REGEX_IPV6_NET}" | sed 's/[(){}|+?]/\\&/g' )"
 
-LZ_VERSION="v1.0.4"
+LZ_VERSION="v1.0.5"
 
 # ------------------ Function -------------------
 
@@ -674,20 +674,22 @@ aggregate_ipv4_data() {
                     # Used to correct APNIC raw data errors. In principle, this situation should not occur, 
                     # otherwise it will cause chaos in the online world.
                     # This portion of code will extend the host runtime used in the CIDR data aggregation process.
-                    local addr_header="" nno=""
+                    local addr_header="" nno="0"
                     local tail_no="$(( 2 - index / 8 ))"
-                    [ "${tail_no}" != "0" ] && eval addr_header="\${addr${tail_no}}:"
-                    eval nno="\${net$(( tail_no + 1 ))}"
-                    local i="$(( nno + 1 ))"
-                    until [ "${i}" -ge "$(( nno + step ))" ]
-                    do
-                        if grep -qE "^${addr_header//"."/"\."}${i}[\.]" "${2}"; then
-                            sed -i "s:^${addr_header//"."/"\."}${i}[\.]:#&:" "${2}"
-                            [ "${PROGRESS_BAR}" = "0" ] && [ "$(( count % 10 ))" = "0" ] && echo -n "."
-                            count="$(( count + 1 ))"
-                        fi
-                        i="$(( i + 1 ))"
-                    done
+                    [ "${tail_no}" != "0" ] && eval addr_header="\${addr${tail_no}}."
+                    tail_no="$(( tail_no + 1 ))"
+                    eval nno="\${net${tail_no}}"
+                    eval "$( awk -v str="" '$0 ~ "'"^${addr_header}"'" \
+                        && ($("'"${tail_no}"'")) + 0 > ("'"${nno}"'") + 0 \
+                        && ($("'"${tail_no}"'")) + 0 < ("'"${nno}"'") + ("'"${step}"'") + 0 {
+                            str = str" -e \"s|^"$0"|#&|\"";
+                        } END{
+                            if (str != "") {
+                                print "sed -i \""str"\" \"""'"${2}"'""\"";
+                                print "[ \"\${PROGRESS_BAR}\" = \"0\" ] && [ \"\$(( count % 10 ))\" = \"0\" ] && echo -n \".\"";
+                                print "count=\"\$(( count + 1 ))\"";
+                            }
+                        }' "${2}" )"
                 fi
             fi
         done <<IP_BUF_INPUT
@@ -775,7 +777,7 @@ aggregate_ipv6_data() {
             net6="${addr6##*:}"
             addr5="${addr6%:*}"
             net5="${addr5##*:}"
-            addr4="${addr5%/*}"
+            addr4="${addr5%:*}"
             net4="${addr4##*:}"
             addr3="${addr4%:*}"
             net3="${addr3##*:}"
@@ -803,20 +805,23 @@ aggregate_ipv6_data() {
                 [ "${PROGRESS_BAR}" = "0" ] && [ "$(( count % 10 ))" = "0" ] && echo -n "."
                 count="$(( count + 1 ))"
                 if [ "${IPV6_DATA}" = "1" ]; then
-                    local addr_header="" nno=""
+                    local addr_header="" nno="0" increment="${step}"
                     local tail_no="$(( 6 - index / 16 ))"
                     [ "${tail_no}" != "0" ] && eval addr_header="\${addr${tail_no}}:"
-                    eval nno="\${net$(( tail_no + 1 ))}"
-                    local i="$( awk 'BEGIN{printf "%x\n", "'"0x${nno}"'" + 1}' )"
-                    until [ "${i}" -ge "$( awk 'BEGIN{printf "%x\n", "'"0x${nno}"'" + "'"${step}"'"}' )" ]
-                    do
-                        if grep -qE "^${addr_header//":"/"\:"}${i}[\:]" "${2}"; then
-                            sed -i "s|^${addr_header//":"/"\:"}${i}[\:]|#&|" "${2}"
-                            [ "${PROGRESS_BAR}" = "0" ] && [ "$(( count % 10 ))" = "0" ] && echo -n "."
-                            count="$(( count + 1 ))"
-                        fi
-                        i="$( awk 'BEGIN{printf "%x\n", "'"0x${i}"'" + 1}' )"
-                    done
+                    tail_no="$(( tail_no + 1 ))"
+                    eval nno="\${net${tail_no}}"
+                    increment="$( awk 'BEGIN{printf "%x\n", "'"${increment}"'"}' )"
+                    eval "$( awk -v str="" '$0 ~ "'"^${addr_header}"'" \
+                        && ("0x"$("'"${tail_no}"'")) + 0x0 > ("0x""'"${nno}"'") + 0x0 \
+                        && ("0x"$("'"${tail_no}"'")) + 0x0 < ("ox""'"${nno}"'") + ("0x""'"${increment}"'") + 0x0 {
+                            str = str" -e \"s|^"$0"|#&|\"";
+                        } END{
+                            if (str != "") {
+                                print "sed -i \""str"\" \"""'"${2}"'""\"";
+                                print "[ \"\${PROGRESS_BAR}\" = \"0\" ] && [ \"\$(( count % 10 ))\" = \"0\" ] && echo -n \".\"";
+                                print "count=\"\$(( count + 1 ))\"";
+                            }
+                        }' "${2}" )"
                 fi
             fi
         done <<IP_BUF_INPUT
@@ -957,7 +962,7 @@ get_file_time_stamp() {
 
 show_header() {
     BEGIN_TIME="$( date +%s -d "$( date +"%F %T" )" )"
-    [ -z "${LZ_VERSION}" ] && LZ_VERSION="v1.0.4"
+    [ -z "${LZ_VERSION}" ] && LZ_VERSION="v1.0.5"
     lz_echo
     lz_echo "LZ ISPRO ${LZ_VERSION} script commands start......"
     lz_echo "By LZ (larsonzhang@gmail.com)"
