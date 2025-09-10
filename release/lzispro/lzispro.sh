@@ -1,5 +1,5 @@
 #!/bin/sh
-# lzispro.sh v1.0.5
+# lzispro.sh v1.0.6
 # By LZ 妙妙呜 (larsonzhang@gmail.com)
 
 # Multi process parallel acquisition tool for IP address data of ISP network operators in China
@@ -126,8 +126,9 @@ DOWNLOAD_URL="http://ftp.apnic.net/apnic/stats/apnic/delegated-apnic-latest"
 WHOIS_HOST="whois.apnic.net"
 
 # Number of parallel query processing
-# Numbers 1 and above (e.g., 4, 8, 16, 24, 32, 40, 48, 56, 64, ...)
-PARA_QUERY_PROC_NUM="32"
+# Numbers 1 and above (e.g., 1, 2, 4, 8, 16, 24, 32, 40, 48, 56, 64, ...)
+# Default: 16, Min: 1. Keep per-core CPU usage under 80%.
+PARA_QUERY_PROC_NUM="16"
 
 # Maximum Number Of Retries After IP Address Query Failure
 # 0--Unlimited, 5--Default
@@ -140,6 +141,7 @@ PROGRESS_BAR="0"
 # System Event Log File
 SYSLOG=""
 #SYSLOG="/tmp/syslog.log"
+#SYSLOG="${PATH_CURRENT}/syslog.log"
 
 # Forced Stop Command Word
 FORCED_STOP_CMD="stop"
@@ -155,7 +157,7 @@ REGEX_IPV6_NET="${REGEX_IPV6_NET}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:(
 REGEX_IPV6_NET="${REGEX_IPV6_NET}([\/]([1-9]|([1-9]|1[0-1])[0-9]|12[0-8]))?"
 REGEX_SED_IPV6_NET="$( echo "${REGEX_IPV6_NET}" | sed 's/[(){}|+?]/\\&/g' )"
 
-LZ_VERSION="v1.0.5"
+LZ_VERSION="v1.0.6"
 
 # ------------------ Function -------------------
 
@@ -630,29 +632,65 @@ get_isp_data() {
     return "0"
 }
 
+get_next_mask() {
+    [ ! -f "${3}" ] && { echo "-1"; return; }
+    while true
+    do
+        [ "${1}" = "4" ] && [ "${2}" -le "32" ] && [ "${2}" -ge "0" ] && break
+        [ "${1}" = "6" ] && [ "${2}" -le "128" ] && [ "${2}" -ge "0" ] && break
+        echo "-1"
+        return
+    done
+    awk -F '/' -v next_mask="0" -v count="0" '!/#/ && $2 ~ /^[0-9]+$/ {
+            if ($2 + 0 > next_mask + 0 && $2 + 0 < "'"${2}"'" + 0) {
+                next_mask = $2;
+                count++;
+            }
+        } END{
+            if (count == "0") print "-1";
+            else print next_mask;
+        }' "${3}"
+}
+
 aggregate_ipv4_data() {
     if [ ! -f "${1}" ] || [ ! -d "${2%/*}" ]; then return "1"; fi;
     cp -p "${1}" "${2}"
     [ ! -f "${2}" ] && return "1"
     sed -i "/^${REGEX_SED_IPV4_NET}$/!d" "${2}"
     ! grep -qE "^${REGEX_IPV4_NET}$" "${2}" && { rm -f "${2}"; return "1"; }
-    local index="0" mask="24" IP_BUF="" step="2" ip_item="" addr4="" addr3="" net3="" addr2="" net2="" addr1="" net1="" count="0"
+    local index="0" MAX_MASK="32" current_mask="32" next_mask="0" mask="32" IP_BUF="" step="2" ip_item="" count="0" \
+        addr4="" net4="" addr3="" net3="" addr2="" net2="" addr1="" net1=""
     [ "${PROGRESS_BAR}" = "0" ] && echo -n "."
-    until [ "${index}" -ge "24" ]
+    current_mask="$( awk -F '/' -v current_mask="0" '{
+            if ($2 + 0 > current_mask + 0) current_mask = $2;
+        } END{print current_mask;}' "${2}" )"
+    [  "${current_mask}" -gt "${MAX_MASK}" ] && current_mask="${MAX_MASK}"
+    index="$(( index + MAX_MASK - current_mask ))"
+    until [ "${index}" -ge "${MAX_MASK}" ]
     do
-        mask="$(( 24 - index ))"
+        mask="$(( MAX_MASK - index ))"
+        if [ "${mask}" -gt "${MAX_MASK}" ]; then
+            next_mask="$( get_next_mask "4" "${current_mask}" "${2}" )"
+            [ "${next_mask}" = "-1" ] && break
+            index="$(( index + current_mask - next_mask ))"
+            current_mask="${next_mask}"
+            continue
+        fi
         step="$(( 1 << ( index % 8 ) ))"
         if [ "${index}" -lt "8" ]; then
-            IP_BUF="$( awk -F '.' '!/#/ && ($3 / "'"${step}"'") % 2 == "0" && $4 == "'"0/${mask}"'" {print $0}' "${2}" )"
+            IP_BUF="$( sed -n "/^[[:space:]]*\([0-9]\{1,3\}[\.]\)\{3\}[0-9]\{1,3\}[\/]${mask}[[:space:]]*$/{s/\//./g; p; q;}" "${2}" \
+                | awk -F '.' '($4 / "'"${step}"'") % 2 == "0" {print $1"."$2"."$3"."$4"/"$5}' )"
         elif [ "${index}" -lt "16" ]; then
+            IP_BUF="$( awk -F '.' '!/#/ && ($3 / "'"${step}"'") % 2 == "0" && $4 == "'"0/${mask}"'" {print $0}' "${2}" )"
+        elif [ "${index}" -lt "24" ]; then
             IP_BUF="$( awk -F '.' '!/#/ && ($2 / "'"${step}"'") % 2 == "0" && $3 == "0" && $4 == "'"0/${mask}"'" {print $0}' "${2}" )"
         else
             IP_BUF="$( awk -F '.' '!/#/ && ($1 / "'"${step}"'") % 2 == "0" && $2 == "0" && $3 == "0" && $4 == "'"0/${mask}"'" {print $0}' "${2}" )"
         fi
         while IFS= read -r ip_item
         do
-            ! grep -q "^${ip_item}$" "${2}" && continue
             addr4="${ip_item%/*}"
+            net4="${addr4##*.}"
             addr3="${addr4%.*}"
             net3="${addr3##*.}"
             addr2="${addr3%.*}"
@@ -660,8 +698,10 @@ aggregate_ipv4_data() {
             addr1="${addr2%.*}"
             net1="${addr1}"
             if [ "${index}" -lt "8" ]; then
-                next_item="${addr2}.$(( net3 + step )).0/${mask}"
+                next_item="${addr3}.$(( net4 + step ))/${mask}"
             elif [ "${index}" -lt "16" ]; then
+                next_item="${addr2}.$(( net3 + step )).0/${mask}"
+            elif [ "${index}" -lt "24" ]; then
                 next_item="${addr1}.$(( net2 + step )).0.0/${mask}"
             else
                 next_item="$(( net1 + step )).0.0.0/${mask}"
@@ -675,27 +715,43 @@ aggregate_ipv4_data() {
                     # otherwise it will cause chaos in the online world.
                     # This portion of code will extend the host runtime used in the CIDR data aggregation process.
                     local addr_header="" nno="0"
-                    local tail_no="$(( 2 - index / 8 ))"
+                    local tail_no="$(( 3 - index / 8 ))"
                     [ "${tail_no}" != "0" ] && eval addr_header="\${addr${tail_no}}."
                     tail_no="$(( tail_no + 1 ))"
                     eval nno="\${net${tail_no}}"
-                    eval "$( awk -v str="" '$0 ~ "'"^${addr_header}"'" \
-                        && ($("'"${tail_no}"'")) + 0 > ("'"${nno}"'") + 0 \
-                        && ($("'"${tail_no}"'")) + 0 < ("'"${nno}"'") + ("'"${step}"'") + 0 {
-                            str = str" -e \"s|^"$0"|#&|\"";
-                        } END{
-                            if (str != "") {
-                                print "sed -i \""str"\" \"""'"${2}"'""\"";
-                                print "[ \"\${PROGRESS_BAR}\" = \"0\" ] && [ \"\$(( count % 10 ))\" = \"0\" ] && echo -n \".\"";
-                                print "count=\"\$(( count + 1 ))\"";
-                            }
-                        }' "${2}" )"
+                    if [ "${tail_no}" = "4" ]; then
+                        sed -n "/^${addr_header//"."/"\."}/{s/\//./g; p; q;}" "${2}" \
+                            | awk -F '.' -v str="" '$4 + 0 > ("'"${nno}"'") + 0 \
+                                && $4 + 0 < ("'"${nno}"'") + ("'"${step}"'") + 0 {
+                                    str = str" -e \"s|^"$1"\\\."$2"\\\."$3"\\\."$4"\\\/"$5"|#&|\"";
+                                } END{
+                                    if (str != "")
+                                        system("sed -i "str" \"""'"${2}"'""\"");
+                                }'
+                    else
+                        awk -F '.' -v str="" '$0 ~ "'"^${addr_header//"."/"\\\."}"'" \
+                            && ($("'"${tail_no}"'")) + 0 > ("'"${nno}"'") + 0 \
+                            && ($("'"${tail_no}"'")) + 0 < ("'"${nno}"'") + ("'"${step}"'") + 0 {
+                                ipa = $0;
+                                gsub(/\./, "\\\.", ipa);
+                                gsub(/\//, "\\\/", ipa);
+                                str = str" -e \"s|^"ipa"|#&|\"";
+                            } END{
+                                if (str != "")
+                                    system("sed -i "str" \"""'"${2}"'""\"");
+                            }' "${2}"
+                    fi
+                    [ "${PROGRESS_BAR}" = "0" ] && [ "$(( count % 10 ))" = "0" ] && echo -n ".";
+                    count="$(( count + 1 ))";
                 fi
             fi
         done <<IP_BUF_INPUT
 ${IP_BUF}
 IP_BUF_INPUT
-        index="$(( index + 1 ))"
+        next_mask="$( get_next_mask "4" "${current_mask}" "${2}" )"
+        [ "${next_mask}" = "-1" ] && break
+        index="$(( index + current_mask - next_mask ))"
+        current_mask="${next_mask}"
     done
     sed -i '/#/d' "${2}"
     [ "${PROGRESS_BAR}" = "0" ] && echo "."
@@ -745,32 +801,47 @@ aggregate_ipv6_data() {
     [ ! -f "${2}" ] && return "1"
     sed -i -e "/^${REGEX_SED_IPV6_NET}$/!d" -e '/[\:][\:]/d' "${2}"
     ! grep -qEi "^${REGEX_IPV6_NET}$" "${2}" && { rm -f "${2}"; return "1"; }
-    local index="0" mask="112" IP_BUF="" step="2" ip_item="" count="0"
-    local addr8="" addr7="" net7="" addr6="" net6="" addr5="" net5="" addr4="" net4="" addr3="" net3="" addr2="" net2="" addr1="" net1=""
+    local index="0" MAX_MASK="128" current_mask="128" next_mask="0" mask="128" IP_BUF="" step="2" ip_item="" count="0" \
+        addr8="" net8="" addr7="" net7="" addr6="" net6="" addr5="" net5="" addr4="" net4="" addr3="" net3="" addr2="" net2="" addr1="" net1=""
     [ "${PROGRESS_BAR}" = "0" ] && echo -n "."
-    until [ "${index}" -ge "112" ]
+    current_mask="$( awk -F '/' -v current_mask="0" '{
+            if ($2 + 0 > current_mask + 0) current_mask = $2;
+        } END{print current_mask;}' "${2}" )"
+    [  "${current_mask}" -gt "${MAX_MASK}" ] && current_mask="${MAX_MASK}"
+    index="$(( index + MAX_MASK - current_mask ))"
+    until [ "${index}" -ge "${MAX_MASK}" ]
     do
-        mask="$(( 112 - index ))"
+        mask="$(( MAX_MASK - index ))"
+        if [ "${mask}" -gt "${MAX_MASK}" ]; then
+            next_mask="$( get_next_mask "6" "${current_mask}" "${2}" )"
+            [ "${next_mask}" = "-1" ] && break
+            index="$(( index + current_mask - next_mask ))"
+            current_mask="${next_mask}"
+            continue
+        fi
         step="$(( 1 << ( index % 16 ) ))"
         if [ "${index}" -lt "16" ]; then
-            IP_BUF="$( awk -F ':' '!/#/ && (("0x"$7) / "'"${step}"'") % 2 == "0" && $8 == "'"0/${mask}"'" {print $0}' "${2}" )"
+            IP_BUF="$( sed -n "/^[[:space:]][\:0-9a-fA-F]\{0,4\}[\:][\:0-9a-fA-F]*[\/]${mask}[[:space:]]*$/{s/\//:/g; p; q;}" "${2}" \
+                | awk -F ':' '!/#/ && (("0x"$8) / "'"${step}"'") % 2 == "0" && $9 == "'"${mask}"'" {print $1":"$2":"$3":"$4":"$5":"$6":"$7":"$8"/"$9}' )"
         elif [ "${index}" -lt "32" ]; then
-            IP_BUF="$( awk -F ':' '!/#/ && (("0x"$6) / "'"${step}"'") % 2 == "0" && $7 == "0" && $8 == "'"0/${mask}"'" {print $0}' "${2}" )"
+            IP_BUF="$( awk -F ':' '!/#/ && (("0x"$7) / "'"${step}"'") % 2 == "0" && $8 == "'"0/${mask}"'" {print $0}' "${2}" )"
         elif [ "${index}" -lt "48" ]; then
-            IP_BUF="$( awk -F ':' '!/#/ && (("0x"$5) / "'"${step}"'") % 2 == "0" && $6 == "0" && $7 == "0" && $8 == "'"0/${mask}"'" {print $0}' "${2}" )"
+            IP_BUF="$( awk -F ':' '!/#/ && (("0x"$6) / "'"${step}"'") % 2 == "0" && $7 == "0" && $8 == "'"0/${mask}"'" {print $0}' "${2}" )"
         elif [ "${index}" -lt "64" ]; then
-            IP_BUF="$( awk -F ':' '!/#/ && (("0x"$4) / "'"${step}"'") % 2 == "0" && $5 == "0" && $6 == "0" && $7 == "0" && $8 == "'"0/${mask}"'" {print $0}' "${2}" )"
+            IP_BUF="$( awk -F ':' '!/#/ && (("0x"$5) / "'"${step}"'") % 2 == "0" && $6 == "0" && $7 == "0" && $8 == "'"0/${mask}"'" {print $0}' "${2}" )"
         elif [ "${index}" -lt "80" ]; then
-            IP_BUF="$( awk -F ':' '!/#/ && (("0x"$3) / "'"${step}"'") % 2 == "0" && $4 == "0" && $5 == "0" && $6 == "0" && $7 == "0" && $8 == "'"0/${mask}"'" {print $0}' "${2}" )"
+            IP_BUF="$( awk -F ':' '!/#/ && (("0x"$4) / "'"${step}"'") % 2 == "0" && $5 == "0" && $6 == "0" && $7 == "0" && $8 == "'"0/${mask}"'" {print $0}' "${2}" )"
         elif [ "${index}" -lt "96" ]; then
+            IP_BUF="$( awk -F ':' '!/#/ && (("0x"$3) / "'"${step}"'") % 2 == "0" && $4 == "0" && $5 == "0" && $6 == "0" && $7 == "0" && $8 == "'"0/${mask}"'" {print $0}' "${2}" )"
+        elif [ "${index}" -lt "112" ]; then
             IP_BUF="$( awk -F ':' '!/#/ && (("0x"$2) / "'"${step}"'") % 2 == "0" && $3 == "0" && $4 == "0" && $5 == "0" && $6 == "0" && $7 == "0" && $8 == "'"0/${mask}"'" {print $0}' "${2}" )"
         else
             IP_BUF="$( awk -F ':' '!/#/ && (("0x"$1) / "'"${step}"'") % 2 == "0" && $2 == "0" && $3 == "0" && $4 == "0" && $5 == "0" && $6 == "0" && $7 == "0" && $8 == "'"0/${mask}"'" {print $0}' "${2}" )"
         fi
         while IFS= read -r ip_item
         do
-            ! grep -qE "^${ip_item}$" "${2}" && continue
             addr8="${ip_item%/*}"
+            net8="${addr8##*:}"
             addr7="${addr8%:*}"
             net7="${addr7##*:}"
             addr6="${addr7%:*}"
@@ -786,16 +857,18 @@ aggregate_ipv6_data() {
             addr1="${addr2%:*}"
             net1="${addr1}"
             if [ "${index}" -lt "16" ]; then
-                next_item="${addr6}:$( awk 'BEGIN{printf "%x\n", "'"0x${net7}"'" + "'"${step}"'"}' ):0/${mask}"
+                next_item="${addr7}:$( awk 'BEGIN{printf "%x\n", "'"0x${net8}"'" + "'"${step}"'"}' )/${mask}"
             elif [ "${index}" -lt "32" ]; then
-                next_item="${addr5}:$( awk 'BEGIN{printf "%x\n", "'"0x${net6}"'" + "'"${step}"'"}' ):0:0/${mask}"
+                next_item="${addr6}:$( awk 'BEGIN{printf "%x\n", "'"0x${net7}"'" + "'"${step}"'"}' ):0/${mask}"
             elif [ "${index}" -lt "48" ]; then
-                next_item="${addr4}:$( awk 'BEGIN{printf "%x\n", "'"0x${net5}"'" + "'"${step}"'"}' ):0:0:0/${mask}"
+                next_item="${addr5}:$( awk 'BEGIN{printf "%x\n", "'"0x${net6}"'" + "'"${step}"'"}' ):0:0/${mask}"
             elif [ "${index}" -lt "64" ]; then
-                next_item="${addr3}:$( awk 'BEGIN{printf "%x\n", "'"0x${net4}"'" + "'"${step}"'"}' ):0:0:0:0/${mask}"
+                next_item="${addr4}:$( awk 'BEGIN{printf "%x\n", "'"0x${net5}"'" + "'"${step}"'"}' ):0:0:0/${mask}"
             elif [ "${index}" -lt "80" ]; then
-                next_item="${addr2}:$( awk 'BEGIN{printf "%x\n", "'"0x${net3}"'" + "'"${step}"'"}' ):0:0:0:0:0/${mask}"
+                next_item="${addr3}:$( awk 'BEGIN{printf "%x\n", "'"0x${net4}"'" + "'"${step}"'"}' ):0:0:0:0/${mask}"
             elif [ "${index}" -lt "96" ]; then
+                next_item="${addr2}:$( awk 'BEGIN{printf "%x\n", "'"0x${net3}"'" + "'"${step}"'"}' ):0:0:0:0:0/${mask}"
+            elif [ "${index}" -lt "112" ]; then
                 next_item="${addr1}:$( awk 'BEGIN{printf "%x\n", "'"0x${net2}"'" + "'"${step}"'"}' ):0:0:0:0:0:0/${mask}"
             else
                 next_item="$( awk 'BEGIN{printf "%x\n", "'"0x${net1}"'" + "'"${step}"'"}' ):0:0:0:0:0:0:0/${mask}"
@@ -811,23 +884,38 @@ aggregate_ipv6_data() {
                     tail_no="$(( tail_no + 1 ))"
                     eval nno="\${net${tail_no}}"
                     increment="$( awk 'BEGIN{printf "%x\n", "'"${increment}"'"}' )"
-                    eval "$( awk -v str="" '$0 ~ "'"^${addr_header}"'" \
-                        && ("0x"$("'"${tail_no}"'")) + 0x0 > ("0x""'"${nno}"'") + 0x0 \
-                        && ("0x"$("'"${tail_no}"'")) + 0x0 < ("ox""'"${nno}"'") + ("0x""'"${increment}"'") + 0x0 {
-                            str = str" -e \"s|^"$0"|#&|\"";
-                        } END{
-                            if (str != "") {
-                                print "sed -i \""str"\" \"""'"${2}"'""\"";
-                                print "[ \"\${PROGRESS_BAR}\" = \"0\" ] && [ \"\$(( count % 10 ))\" = \"0\" ] && echo -n \".\"";
-                                print "count=\"\$(( count + 1 ))\"";
-                            }
-                        }' "${2}" )"
+                    if [ "${tail_no}" = "8" ]; then
+                        sed -n "/^${addr_header}/{s/\//:/g; p; q;}" "${2}" \
+                            | awk -F ':' -v str="" '("0x"$("'"${tail_no}"'")) + 0x0 > ("0x""'"${nno}"'") + 0x0 \
+                                && ("0x"$("'"${tail_no}"'")) + 0x0 < ("ox""'"${nno}"'") + ("0x""'"${increment}"'") + 0x0 {
+                                    str = str" -e \"s|^"$1":"$2":"$3":"$4":"$5":"$6":"$7":"$8"\\\/"$9"|#&|\"";
+                                } END{
+                                    if (str != "")
+                                        system("sed -i "str" \"""'"${2}"'""\"");
+                                }'
+                    else
+                        awk -F ':' -v str="" '$0 ~ "'"^${addr_header}"'" \
+                            && ("0x"$("'"${tail_no}"'")) + 0x0 > ("0x""'"${nno}"'") + 0x0 \
+                            && ("0x"$("'"${tail_no}"'")) + 0x0 < ("ox""'"${nno}"'") + ("0x""'"${increment}"'") + 0x0 {
+                                ipa = $0;
+                                gsub(/\//, "\\\/", ipa);
+                                str = str" -e \"s|^"ipa"|#&|\"";
+                            } END{
+                                if (str != "")
+                                    system("sed -i "str" \"""'"${2}"'""\"");
+                            }' "${2}"
+                    fi
+                    [ "${PROGRESS_BAR}" = "0" ] && [ "$(( count % 10 ))" = "0" ] && echo -n ".";
+                    count="$(( count + 1 ))";
                 fi
             fi
         done <<IP_BUF_INPUT
 ${IP_BUF}
 IP_BUF_INPUT
-        index="$(( index + 1 ))"
+        next_mask="$( get_next_mask "6" "${current_mask}" "${2}" )"
+        [ "${next_mask}" = "-1" ] && break
+        index="$(( index + current_mask - next_mask ))"
+        current_mask="${next_mask}"
     done
     [ "${PROGRESS_BAR}" = "0" ] && echo -n "."
     sed -i -e '/#/d' -e 's/\([:][0]\)\{2,7\}/::/' -e 's/:::/::/' -e 's/^0::/::/' -e '/^[ ]*$/d' "${2}"
@@ -962,7 +1050,7 @@ get_file_time_stamp() {
 
 show_header() {
     BEGIN_TIME="$( date +%s -d "$( date +"%F %T" )" )"
-    [ -z "${LZ_VERSION}" ] && LZ_VERSION="v1.0.5"
+    [ -z "${LZ_VERSION}" ] && LZ_VERSION="v1.0.6"
     lz_echo
     lz_echo "LZ ISPRO ${LZ_VERSION} script commands start......"
     lz_echo "By LZ (larsonzhang@gmail.com)"

@@ -5,7 +5,7 @@ Multi process parallel acquisition tool for IP address data of ISP network opera
 
 *呵呵，妥妥的一个主机多进程网络性能，计算性能，读写性能测试工具！能以极致指标跑好这个脚本，才敢说有台好设备可以凑合用了。*
 
-**v1.0.5**
+**v1.0.6**
 
 工具采用 Shell 脚本编写，参考并借鉴 clangcn（ https://github.com/clangcn/everyday-update-cn-isp-ip.git ）项目代码和思路，通过多进程并行处理技术，对信息检索和数据写入过程进行优化，极大提高 ISP 运营商分项地址数据生成效率，减少运行时间。
 
@@ -118,11 +118,11 @@ Multi process parallel acquisition tool for IP address data of ISP network opera
 
 ## 二、安装项目脚本
 
-1. 下载本工具的软件压缩包 lzsipcn-[version ID].tgz（例如：lzispro-v1.0.5.tgz）。
+1. 下载本工具的软件压缩包 lzsipcn-[version ID].tgz（例如：lzispro-v1.0.6.tgz）。
 
 2. 将压缩包复制到设备的任意有读写权限的目录。
 
-3. 在 Shell 终端中使用解压缩命令在当前目录中解压缩，生成 lzispro-[version ID] 目录（例如：lzispro-v1.0.5），其中包含一个 lzispro 目录，是脚本所在目录。
+3. 在 Shell 终端中使用解压缩命令在当前目录中解压缩，生成 lzispro-[version ID] 目录（例如：lzispro-v1.0.6），其中包含一个 lzispro 目录，是脚本所在目录。
 
 ```markdown
   tar -xzvf lzispro-[version ID].tgz
@@ -146,7 +146,7 @@ Multi process parallel acquisition tool for IP address data of ISP network opera
 
 3. 进行 ISP 运营商分项数据归类时，脚本需要通过互联网访问 APNIC 做海量信息查询，可能要耗费一、两个小时以上时间。切勿中断此执行过程，并耐心等候。
 
-4. 若要减少 ISP 运营商分项数据归类处理时间，可根据设备硬件平台性能，在不影响设备正常使用的前提下，酌情并适可而止的修改查询 ISP 信息归类数据的「并行查询处理多进程数量 PARA_QUERY_PROC_NUM」参数，取值越大，效率越高，用时越短。例如，从缺省的 4 进程，提高到 8 进程，16 进程，甚至 64 进程，效率可能获得翻倍，或数倍提高，大大降低程序运行时间，改善应用体验。
+4. 若要减少 ISP 运营商分项数据归类处理时间，可根据设备硬件平台性能，在不影响设备正常使用的前提下，酌情并适可而止的修改查询 ISP 信息归类数据的「并行查询处理多进程数量 PARA_QUERY_PROC_NUM」参数，最小为 1，取值越大，效率越高，用时越短。原则上不要让主机 CPU 每个核心运行时的资源占用率超过 80% 为宜，可据此对该参数进行上下调整。例如，从缺省的 16 进程，提高到 32 进程，48 进程，甚至 64 进程，效率可能获得翻倍，或数倍提高，大大降低程序运行时间，改善应用体验。
 
 ## 四、目录结构
 
