@@ -879,7 +879,7 @@ aggregate_ipv6_data() {
                 count="$(( count + 1 ))"
                 if [ "${IPV6_DATA}" = "1" ]; then
                     local addr_header="" nno="0" increment="${step}"
-                    local tail_no="$(( 6 - index / 16 ))"
+                    local tail_no="$(( 7 - index / 16 ))"
                     [ "${tail_no}" != "0" ] && eval addr_header="\${addr${tail_no}}:"
                     tail_no="$(( tail_no + 1 ))"
                     eval nno="\${net${tail_no}}"
@@ -887,7 +887,7 @@ aggregate_ipv6_data() {
                     if [ "${tail_no}" = "8" ]; then
                         sed -n "/^${addr_header}/{s/\//:/g; p; q;}" "${2}" \
                             | awk -F ':' -v str="" '("0x"$("'"${tail_no}"'")) + 0x0 > ("0x""'"${nno}"'") + 0x0 \
-                                && ("0x"$("'"${tail_no}"'")) + 0x0 < ("ox""'"${nno}"'") + ("0x""'"${increment}"'") + 0x0 {
+                                && ("0x"$("'"${tail_no}"'")) + 0x0 < ("0x""'"${nno}"'") + ("0x""'"${increment}"'") + 0x0 {
                                     str = str" -e \"s|^"$1":"$2":"$3":"$4":"$5":"$6":"$7":"$8"\\\/"$9"|#&|\"";
                                 } END{
                                     if (str != "")
@@ -896,7 +896,7 @@ aggregate_ipv6_data() {
                     else
                         awk -F ':' -v str="" '$0 ~ "'"^${addr_header}"'" \
                             && ("0x"$("'"${tail_no}"'")) + 0x0 > ("0x""'"${nno}"'") + 0x0 \
-                            && ("0x"$("'"${tail_no}"'")) + 0x0 < ("ox""'"${nno}"'") + ("0x""'"${increment}"'") + 0x0 {
+                            && ("0x"$("'"${tail_no}"'")) + 0x0 < ("0x""'"${nno}"'") + ("0x""'"${increment}"'") + 0x0 {
                                 ipa = $0;
                                 gsub(/\//, "\\\/", ipa);
                                 str = str" -e \"s|^"ipa"|#&|\"";
