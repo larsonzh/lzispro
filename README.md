@@ -5,7 +5,7 @@ Multi process parallel acquisition tool for IP address data of ISP network opera
 
 *呵呵，妥妥的一个主机多进程网络性能，计算性能，读写性能测试工具！能以极致指标跑好这个脚本，才敢说有台好设备可以凑合用了。*
 
-**v1.0.7**
+**v1.0.8**
 
 工具采用 Shell 脚本编写，参考并借鉴 clangcn（ https://github.com/clangcn/everyday-update-cn-isp-ip.git ）项目代码和思路，通过多进程并行处理技术，对信息检索和数据写入过程进行优化，极大提高 ISP 运营商分项地址数据生成效率，减少运行时间。
 
@@ -118,11 +118,11 @@ Multi process parallel acquisition tool for IP address data of ISP network opera
 
 ## 二、安装项目脚本
 
-1. 下载本工具的软件压缩包 lzsipcn-[version ID].tgz（例如：lzispro-v1.0.7.tgz）。
+1. 下载本工具的软件压缩包 lzsipcn-[version ID].tgz（例如：lzispro-v1.0.8.tgz）。
 
 2. 将压缩包复制到设备的任意有读写权限的目录。
 
-3. 在 Shell 终端中使用解压缩命令在当前目录中解压缩，生成 lzispro-[version ID] 目录（例如：lzispro-v1.0.7），其中包含一个 lzispro 目录，是脚本所在目录。
+3. 在 Shell 终端中使用解压缩命令在当前目录中解压缩，生成 lzispro-[version ID] 目录（例如：lzispro-v1.0.8），其中包含一个 lzispro 目录，是脚本所在目录。
 
 ```markdown
   tar -xzvf lzispro-[version ID].tgz

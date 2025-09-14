@@ -1,5 +1,5 @@
 #!/bin/sh
-# lzispro.sh v1.0.7
+# lzispro.sh v1.0.8
 # By LZ 妙妙呜 (larsonzhang@gmail.com)
 
 # Multi process parallel acquisition tool for IP address data of ISP network operators in China
@@ -155,9 +155,10 @@ REGEX_IPV6_NET="${REGEX_IPV6_NET}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,
 REGEX_IPV6_NET="${REGEX_IPV6_NET}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}"
 REGEX_IPV6_NET="${REGEX_IPV6_NET}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:))"
 REGEX_IPV6_NET="${REGEX_IPV6_NET}([\/]([1-9]|([1-9]|1[0-1])[0-9]|12[0-8]))?"
+REGEX_IPV6="${REGEX_IPV6_NET%"([\/]("*}"
 REGEX_SED_IPV6_NET="$( echo "${REGEX_IPV6_NET}" | sed 's/[(){}|+?]/\\&/g' )"
 
-LZ_VERSION="v1.0.7"
+LZ_VERSION="v1.0.8"
 
 # ------------------ Function -------------------
 
@@ -698,8 +699,7 @@ aggregate_ipv4_data() {
     get_ipv4_extend "${1}" > "${2}.tmp"
     [ ! -f "${2}.tmp" ] && return "1"
     ! grep -Ec '.' "${2}.tmp" | awk '{if ($1 < 1) exit(1)}' && { rm -f "${2}.tmp"; return "1"; }
-    local index="0" MAX_MASK="32" current_mask="32" next_mask="0" mask="32" IP_BUF="" step="2" key_no="0" ip_item="" \
-        addr_header="" nno="0" next_item="" count="0"
+    local index="0" MAX_MASK="32" current_mask="32" next_mask="0" mask="32" step="2" key_no="0"
     [ "${PROGRESS_BAR}" = "0" ] && echo -n "."
     current_mask="$( awk -v current_mask="0" '{
             if ($5 + 0 > current_mask + 0) current_mask = $5;
@@ -718,48 +718,68 @@ aggregate_ipv4_data() {
         fi
         step="$(( 1 << ( index % 8 ) ))"
         key_no="$(( 4 - index / 8 ))"
-        IP_BUF="$( grep "[[:space:]]\+${mask}$" "${2}.tmp" \
+        grep -E "^([0-9]+[[:space:]]+){4}${mask}$" "${2}.tmp" \
             | awk 'function check_field(field_no) {for (i = field_no; i < 5; ++i) {if ($(i) != "0") retrun 0;} return 1;} \
-                !/#/ && ($("'"${key_no}"'") / "'"${step}"'" + 0) % 2 == 0 && check_field("'"${key_no}"'" + 1)' )"
-        while IFS= read -r ip_item
-        do
-            eval "$( echo "${ip_item}" | awk -v key_no="${key_no}" '{
-                        str1 = "";
-                        for (i = 1; i < key_no + 0; ++i)
-                            str1 = str1" "$i;
-                        sub(/^[[:space:]]+/, "", str1);
-                        print "addr_header=\""str1"\"";
-                        str2 = "";
-                        for (i = key_no + 1; i <= 5; ++i)
-                            str2 = str2" "$i;
-                        print "nno=\""$(key_no)"\"";
-                        str2 = str1" "($(key_no) + "'"${step}"'" + 0)str2;
-                        sub(/^[[:space:]]+/, "", str2);
-                        print "next_item=\""str2"\"";
-                    }' )"
-            if grep -q "^${next_item}$" "${2}.tmp"; then
-                sed -i -e "s/^${ip_item}$/${ip_item%" "*} $(( mask - 1 ))/" -e "s/^${next_item}$/#&/" "${2}.tmp"
-                [ "${PROGRESS_BAR}" = "0" ] && [ "$(( count % 10 ))" = "0" ] && echo -n ".";
-                count="$(( count + 1 ))";
-                if [ "${IPV4_DATA}" = "1" ]; then
+                BEGIN{deep_command = ""; str = ""; process_count = "0"; deep_count = "0"} \
+                NF == "5" && !i[$0]++ && ($("'"${key_no}"'") / "'"${step}"'" + 0) % 2 == 0 && check_field("'"${key_no}"'" + 1) {
+                    nno = $("'"${key_no}"'");
+                    addr_header = "";
+                    for (i = 1; i < "'"${key_no}"'" + 0; ++i)
+                        addr_header = addr_header" "$i;
+                    sub(/^[[:space:]]+/, "", addr_header);
+                    next_item = "";
+                    for (i = "'"${key_no}"'" + 1; i <= 5; ++i)
+                        next_item = next_item" "$i;
+                    next_item = addr_header" "(nno + "'"${step}"'" + 0)next_item;
+                    sub(/^[[:space:]]+/, "", next_item);
+                    if (next_item == "") next;
+                    new_addr = $0;
+                    sub(/[[:space:]]+[0-9]+$/, "", new_addr);
+                    cmd_str = "grep -q \"^"next_item"\$\" \"""'"${2}.tmp"'""\" && sed -i -e \"s/^"$0"\$/"new_addr" "($5 - 1)"/\" -e \"s/^"next_item"\$/#&/\" \"""'"${2}.tmp"'""\"";
+                    system(cmd_str);
+                    if ("'"${PROGRESS_BAR}"'" == "0" && process_count % 10 == 0) {
+                        printf "%s", ".";
+                        process_count++
+                    }
+                    if ("'"${IPV4_DATA}"'" != "1") next;
                     # Used to correct APNIC raw data errors. In principle, this situation should not occur, 
                     # otherwise it will cause chaos in the online world.
                     # This portion of code will extend the host runtime used in the CIDR data aggregation process.
-                    grep "^${addr_header}[[:space:]]\+" "${2}.tmp" \
-                        | awk -v str="" '$("'"${key_no}"'") + 0 > "'"${nno}"'" + 0 \
-                            && $("'"${key_no}"'") + 0 < "'"${nno}"'" + "'"${step}"'" + 0 {
-                                str = str" -e \"s/^"$0"/#&/\"";
-                            } END{
-                                if (str != "")
-                                    system("sed -i"str" \"""'"${2}.tmp"'""\"");
-                            }'
-                    [ "${PROGRESS_BAR}" = "0" ] && [ "$(( count % 10 ))" = "0" ] && echo -n ".";
-                    count="$(( count + 1 ))";
-                fi
-            fi
-        done <<IP_BUF_INPUT
-${IP_BUF}
-IP_BUF_INPUT
+                    deep_command = "grep -E \"^"addr_header"[[:space:]]+\" \"""'"${2}.tmp"'""\"";
+                    while ((deep_command | getline addr_line) > 0) {
+                        if (addr_line !~ /^([0-9]+[[:space:]]+){4}[0-9]+$/) break;
+                        split(addr_line, arr, /[[:space:]]+/);
+                        if (arr["'"${key_no}"'"] + 0 > nno + 0 && arr["'"${key_no}"'"] + 0 < nno + "'"${step}"'" + 0) {
+                            str = str" -e \"s/^"addr_line"/#&/\"";
+                            deep_count++;
+                        }
+                        delete arr;
+                        if (deep_count + 0 > 100) {
+                            if (str != "") {
+                                system("sed -i"str" \"""'"${2}.tmp"'""\"");
+                                str = "";
+                            }
+                            deep_count = 0;
+                        }
+                    }
+                    close(deep_command);
+                    deep_command = "";
+                    if (deep_count + 0 > 100) {
+                        if (str != "") {
+                            system("sed -i"str" \"""'"${2}.tmp"'""\"");
+                            str = "";
+                        }
+                        deep_count = 0;
+                    }
+                    if ("'"${PROGRESS_BAR}"'" == "0" && process_count % 10 == 0) {
+                        printf "%s", ".";
+                        process_count++
+                    }
+                } END{
+                    if (deep_command != "") close(deep_command);
+                    if (str != "") system("sed -i"str" \"""'"${2}.tmp"'""\"");
+                    if ("'"${PROGRESS_BAR}"'" == "0") printf "%s", ".";
+                }'
         next_mask="$( get_next_mask "4" "${current_mask}" "${2}.tmp" )"
         [ "${next_mask}" = "-1" ] && break
         index="$(( index + current_mask - next_mask ))"
@@ -841,8 +861,7 @@ aggregate_ipv6_data() {
     get_ipv6_extend "${1}" > "${2}.tmp"
     [ ! -f "${2}.tmp" ] && return "1"
     ! grep -Ec '.' "${2}.tmp" | awk '{if ($1 < 1) exit(1)}' && { rm -f "${2}.tmp"; return "1"; }
-    local index="0" MAX_MASK="128" current_mask="128" next_mask="0" mask="128" IP_BUF="" step="2" key_no="0" ip_item="" \
-        addr_header="" nno="0" next_item="" count="0"
+    local index="0" MAX_MASK="128" current_mask="128" next_mask="0" mask="128" step="2" key_no="0"
     [ "${PROGRESS_BAR}" = "0" ] && echo -n "."
     current_mask="$( awk -v current_mask="0" '{
             if ($9 + 0 > current_mask + 0) current_mask = $9;
@@ -861,45 +880,65 @@ aggregate_ipv6_data() {
         fi
         step="$(( 1 << ( index % 16 ) ))"
         key_no="$(( 8 - index / 16 ))"
-        IP_BUF="$( grep "[[:space:]]\+${mask}$" "${2}.tmp" \
+        grep -E "^([0-9]+[[:space:]]+){8}${mask}$" "${2}.tmp" \
             | awk 'function check_field(field_no) {for (i = field_no; i < 9; ++i) {if ($(i) != "0") retrun 0;} return 1;} \
-                !/#/ && ($("'"${key_no}"'") / "'"${step}"'" + 0) % 2 == 0 && check_field("'"${key_no}"'" + 1)' )"
-        while IFS= read -r ip_item
-        do
-            eval "$( echo "${ip_item}" | awk -v key_no="${key_no}" '{
-                        str1 = "";
-                        for (i = 1; i < key_no + 0; ++i)
-                            str1 = str1" "$i;
-                        sub(/^[[:space:]]+/, "", str1);
-                        print "addr_header=\""str1"\"";
-                        str2 = "";
-                        for (i = key_no + 1; i <= 9; ++i)
-                            str2 = str2" "$i;
-                        print "nno=\""$(key_no)"\"";
-                        str2 = str1" "($(key_no) + "'"${step}"'" + 0)str2;
-                        sub(/^[[:space:]]+/, "", str2);
-                        print "next_item=\""str2"\"";
-                    }' )"
-            if grep -q "^${next_item}$" "${2}.tmp"; then
-                sed -i -e "s/^${ip_item}$/${ip_item%" "*} $(( mask - 1 ))/" -e "s/^${next_item}$/#&/" "${2}.tmp"
-                [ "${PROGRESS_BAR}" = "0" ] && [ "$(( count % 10 ))" = "0" ] && echo -n "."
-                count="$(( count + 1 ))"
-                if [ "${IPV6_DATA}" = "1" ]; then
-                    grep "^${addr_header}[[:space:]]\+" "${2}.tmp" \
-                        | awk -v str="" '$("'"${key_no}"'") + 0 > "'"${nno}"'" + 0 \
-                            && $("'"${key_no}"'") + 0 < "'"${nno}"'" + "'"${step}"'" + 0 {
-                                str = str" -e \"s/^"$0"/#&/\"";
-                            } END{
-                                if (str != "")
-                                    system("sed -i"str" \"""'"${2}.tmp"'""\"");
-                            }'
-                    [ "${PROGRESS_BAR}" = "0" ] && [ "$(( count % 10 ))" = "0" ] && echo -n ".";
-                    count="$(( count + 1 ))";
-                fi
-            fi
-        done <<IP_BUF_INPUT
-${IP_BUF}
-IP_BUF_INPUT
+                BEGIN{deep_command = ""; str = ""; process_count = "0"; deep_count = 0;} \
+                NF == "9" && !i[$0]++ && ($("'"${key_no}"'") / "'"${step}"'" + 0) % 2 == 0 && check_field("'"${key_no}"'" + 1) {
+                    nno = $("'"${key_no}"'");
+                    addr_header = "";
+                    for (i = 1; i < "'"${key_no}"'" + 0; ++i)
+                        addr_header = addr_header" "$i;
+                    sub(/^[[:space:]]+/, "", addr_header);
+                    next_item = "";
+                    for (i = "'"${key_no}"'" + 1; i <= 9; ++i)
+                        next_item = next_item" "$i;
+                    next_item = addr_header" "(nno + "'"${step}"'" + 0)next_item;
+                    sub(/^[[:space:]]+/, "", next_item);
+                    if (next_item == "") next;
+                    new_addr = $0;
+                    sub(/[[:space:]]+[0-9]+$/, "", new_addr);
+                    cmd_str = "grep -q \"^"next_item"\$\" \"""'"${2}.tmp"'""\" && sed -i -e \"s/^"$0"\$/"new_addr" "($9 - 1)"/\" -e \"s/^"next_item"\$/#&/\" \"""'"${2}.tmp"'""\"";
+                    system(cmd_str);
+                    if ("'"${PROGRESS_BAR}"'" == "0" && process_count % 10 == 0) {
+                        printf "%s", ".";
+                        process_count++
+                    }
+                    if ("'"${IPV6_DATA}"'" != "1") next;
+                    deep_command = "grep -E \"^"addr_header"[[:space:]]+\" \"""'"${2}.tmp"'""\"";
+                    while ((deep_command | getline addr_line) > 0) {
+                        if (addr_line !~ /^([0-9]+[[:space:]]+){8}[0-9]+$/) break;
+                        split(addr_line, arr, /[[:space:]]+/);
+                        if (arr["'"${key_no}"'"] + 0 > nno + 0 && arr["'"${key_no}"'"] + 0 < nno + "'"${step}"'" + 0) {
+                            str = str" -e \"s/^"addr_line"/#&/\"";
+                            deep_count++;
+                        }
+                        delete arr;
+                        if (deep_count + 0 > 100) {
+                            if (str != "") {
+                                system("sed -i"str" \"""'"${2}.tmp"'""\"");
+                                str = "";
+                            }
+                            deep_count = 0;
+                        }
+                    }
+                    close(deep_command);
+                    deep_command = "";
+                    if (deep_count + 0 > 100) {
+                        if (str != "") {
+                            system("sed -i"str" \"""'"${2}.tmp"'""\"");
+                            str = "";
+                        }
+                        deep_count = 0;
+                    }
+                    if ("'"${PROGRESS_BAR}"'" == "0" && process_count % 10 == 0) {
+                        printf "%s", ".";
+                        process_count++
+                    }
+                } END{
+                    if (deep_command != "") close(deep_command);
+                    if (str != "") system("sed -i"str" \"""'"${2}.tmp"'""\"");
+                    if ("'"${PROGRESS_BAR}"'" == "0") printf "%s", ".";
+                }'
         next_mask="$( get_next_mask "6" "${current_mask}" "${2}.tmp" )"
         [ "${next_mask}" = "-1" ] && break
         index="$(( index + current_mask - next_mask ))"
@@ -1045,7 +1084,7 @@ get_file_time_stamp() {
 
 show_header() {
     BEGIN_TIME="$( date +%s -d "$( date +"%F %T" )" )"
-    [ -z "${LZ_VERSION}" ] && LZ_VERSION="v1.0.7"
+    [ -z "${LZ_VERSION}" ] && LZ_VERSION="v1.0.8"
     lz_echo
     lz_echo "LZ ISPRO ${LZ_VERSION} script commands start......"
     lz_echo "By LZ (larsonzhang@gmail.com)"
@@ -1099,23 +1138,29 @@ do
     init_param || break
     init_isp_data_script || break
     get_apnic_info || break
-    lz_echo "---------------------------------------------"
+    { [ "${IPV4_DATA}" = "0" ] || [ "${IPV4_DATA}" = "1" ] || [ "${IPV4_DATA}" = "2" ]; } \
+        && lz_echo "---------------------------------------------"
     get_area_data "CN" "ipv4" "${ISP_DATA_0}" || break
-    lz_echo "---------------------------------------------"
+    { [ "${IPV4_DATA}" = "0" ] || [ "${IPV4_DATA}" = "1" ] || [ "${IPV4_DATA}" = "2" ]; } \
+        && lz_echo "---------------------------------------------"
     get_isp_data "ipv4" || break
     get_area_data "HK" "ipv4" "${ISP_DATA_8}" || break
     get_area_data "MO" "ipv4" "${ISP_DATA_9}" || break
     get_area_data "TW" "ipv4" "${ISP_DATA_10}" || break
-    lz_echo "---------------------------------------------"
+    { [ "${IPV4_DATA}" = "0" ] || [ "${IPV4_DATA}" = "1" ]; } \
+        && lz_echo "---------------------------------------------"
     get_ipv4_cidr_data || break
-    lz_echo "---------------------------------------------"
+    { [ "${IPV6_DATA}" = "0" ] || [ "${IPV6_DATA}" = "1" ] || [ "${IPV6_DATA}" = "2" ]; } \
+        && lz_echo "---------------------------------------------"
     get_area_data "CN" "ipv6" "${ISP_IPV6_DATA_0}" || break
-    lz_echo "---------------------------------------------"
+    { [ "${IPV6_DATA}" = "0" ] || [ "${IPV6_DATA}" = "1" ] || [ "${IPV6_DATA}" = "2" ]; } \
+        && lz_echo "---------------------------------------------"
     get_isp_data "ipv6" || break
     get_area_data "HK" "ipv6" "${ISP_IPV6_DATA_8}" || break
     get_area_data "MO" "ipv6" "${ISP_IPV6_DATA_9}" || break
     get_area_data "TW" "ipv6" "${ISP_IPV6_DATA_10}" || break
-    lz_echo "---------------------------------------------"
+    { [ "${IPV6_DATA}" = "0" ] || [ "${IPV6_DATA}" = "1" ]; } \
+        && lz_echo "---------------------------------------------"
     get_ipv6_cidr_data || break
     save_data || break
     show_data_path
