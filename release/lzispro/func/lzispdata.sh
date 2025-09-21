@@ -1,5 +1,5 @@
 #!/bin/sh
-# lzispdata.sh v1.0.9
+# lzispdata.sh v1.1.0
 # By LZ 妙妙呜 (larsonzhang@gmail.com)
 
 # ISP Data Process Script
@@ -70,8 +70,7 @@ unset_isp_data_buf() {
 }
 
 get_isp_details() {
-    whois -h "${WHOIS_HOST}" "${1%/*}" \
-        | awk 'NR == "1" || tolower($1) ~ /^(netname|mnt-|e-mail)/ {if (NR == "1" && tolower($2) != tolower("'"[${WHOIS_HOST}]"'")) exit; else print $2}'
+    whois -h "${WHOIS_HOST}" "${1%/*}" | grep -Ei '^(netname|mnt-|e-mail)'
 }
 
 write_isp_data_buf() {
