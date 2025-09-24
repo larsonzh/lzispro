@@ -1,5 +1,5 @@
 #!/bin/sh
-# lzispdata.sh v1.1.1
+# lzispdata.sh v1.1.2
 # By LZ 妙妙呜 (larsonzhang@gmail.com)
 
 # ISP Data Process Script
@@ -25,7 +25,7 @@ init_param() {
     while true
     do
         local path_cur="${2%/*}"
-        ! echo "${path_cur}" | grep -q '^[\/]' && path_cur="$( pwd )${path_cur#*.}"
+        ! echo "${path_cur}" | grep -q '^[/]' && path_cur="$( pwd )${path_cur#*.}"
         [ "${path_cur}/${2##*/}" != "${PATH_FUNC}/${ISP_DATA_SCRIPT}" ] && break
         [ "${1}" != "2" ] && break
         [ "${IPV_TYPE}" != "ipv4" ] && [ "${IPV_TYPE}" != "ipv6" ] && break
