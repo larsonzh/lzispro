@@ -79,7 +79,7 @@ Multi process parallel acquisition tool for IP address data of ISP network opera
 ```markdown
   sudo apt update
   sudo apt install whois
-  sudo apt install gwak
+  sudo apt install gawk
   sudo apt install screen # 可选项
 ```
 
