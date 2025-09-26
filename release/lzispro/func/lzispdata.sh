@@ -1,5 +1,5 @@
 #!/bin/sh
-# lzispdata.sh v1.1.2
+# lzispdata.sh v1.1.3
 # By LZ 妙妙呜 (larsonzhang@gmail.com)
 
 # ISP Data Process Script
