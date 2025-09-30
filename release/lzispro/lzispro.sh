@@ -1,5 +1,5 @@
 #!/bin/sh
-# lzispro.sh v1.1.3
+# lzispro.sh v1.1.4
 # By LZ 妙妙呜 (larsonzhang@gmail.com)
 
 # Multi process parallel acquisition tool for IP address data of ISP network operators in China
@@ -133,6 +133,11 @@ PARA_QUERY_PROC_NUM=16
 # 0--Unlimited, 5--Default
 RETRY_NUM=5
 
+# CIDR Aggregation Compression Algorithm
+# 0--Hash Merging (Default, Hash Table Random Access)
+# 1--Sequential Merging (Sequential Index Access)
+CIDR_MERGE_ALGO=0
+
 # Progress Bar
 # 0--Enable (Default), Other--Disable (e.g., 5, 8, a, x, ...)
 PROGRESS_BAR=0
@@ -160,7 +165,7 @@ REGEX_IPV6_NET="${REGEX_IPV6_NET}([/]([1-9]|([1-9]|1[0-1])[0-9]|12[0-8]))?"
 REGEX_IPV6="${REGEX_IPV6_NET%([[]/[]](*}"
 REGEX_SED_IPV6_NET="$( echo "${REGEX_IPV6_NET}" | sed 's/[(){}|+?]/\\&/g' )"
 
-LZ_VERSION="v1.1.3"
+LZ_VERSION="v1.1.4"
 
 # ------------------ Function -------------------
 
@@ -380,7 +385,7 @@ init_param() {
         detect_str_space "DOWNLOAD_URL" || break
         [ -z "${WHOIS_HOST}" ] && WHOIS_HOST="whois.apnic.net"
         detect_str_space "WHOIS_HOST" || break
-        ! echo "${PARA_QUERY_PROC_NUM}" | grep -qE '^[0-9][0-9]*$' && {
+        ! echo "${PARA_QUERY_PROC_NUM}" | grep -qE '^[0-9]+$' && {
             lz_echo "PARA_QUERY_PROC_NUM isn't an decimal unsigned integer."
             lz_echo "Game Over !!!"
             break
@@ -390,7 +395,7 @@ init_param() {
             lz_echo "PARA_QUERY_PROC_NUM cann't be less than 1."
             lz_echo "Game Over !!!"
         }
-        ! echo "${RETRY_NUM}" | grep -qE '^[0-9][0-9]*$' && {
+        ! echo "${RETRY_NUM}" | grep -qE '^[0-9]+$' && {
             lz_echo "RETRY_NUM isn't an decimal unsigned integer."
             lz_echo "Game Over !!!"
             break
@@ -646,7 +651,8 @@ get_ipv4_extend() {
         } $0 ~ "'"^${REGEX_IPV4_NET}$"'" {
             cidr = ($5 ~ /^([1-9]|[1-2][0-9]|3[0-2])$/) ? $5 : 32;
             pos = int((cidr + 0) / 8) + 1;
-            step = lz_lshift(1, (32 - cidr) % 8);
+            # step = lz_lshift(1, (32 - cidr) % 8);
+            step = 1 * (2 ^ ((32 - cidr) % 8));
             print fix_data($1, 1)" "fix_data($2, 2)" "fix_data($3, 3)" "fix_data($4, 4)" "cidr;
         }' "${1}" | sort -t ' ' -k1,1n -k2,2n -k3,3n -k4,4n -k5,5n
 }
@@ -666,19 +672,18 @@ get_ipv6_extend() {
                 dec = dec * 16 + digit;
             }
             return dec
-        } function fix_cidr(ipa,    arr, i, pos, step, ip_value, cmd) {
+        } function print_fix_cidr(ipa,    i, pos, step) {
             split(ipa, arr, /[[:space:]]+/);
             for (i = 1; i < 9; ++i)
                 arr[i] = (AUTO_HEX_TO_DEC) ? sprintf("%u\n", "0x"arr[i]) : hex2dec(arr[i]);
             if (arr[9] + 0 < 128) {
                 pos = int((arr[9] + 0) / 16) + 1;
-                step = lz_lshift(1, (128 - arr[9]) % 16);
+                # step = lz_lshift(1, (128 - arr[9]) % 16);
+                step = 1 * (2 ^ ((128 - arr[9]) % 16));
                 for (i = pos; i < 9; ++i)
                     arr[i] = (i == pos) ? int((arr[i] + 0) / step) * step : 0
             }
-            ip_value = sprintf("%u %u %u %u %u %u %u %u %u",arr[1],arr[2],arr[3],arr[4],arr[5],arr[6],arr[7],arr[8],arr[9]);
-            delete arr;
-            return ip_value;
+            printf "%u %u %u %u %u %u %u %u %u\n", arr[1], arr[2], arr[3], arr[4], arr[5], arr[6], arr[7], arr[8], arr[9];
         } BEGIN {
             HEX_CHARS = "";
             AUTO_HEX_TO_DEC = 1;
@@ -686,6 +691,7 @@ get_ipv6_extend() {
                 AUTO_HEX_TO_DEC = 0;
                 HEX_CHARS = "0123456789abcdef";
             }
+            delete arr;
         } $0 ~ "'"^${REGEX_IPV6_NET}$"'" {
             val = $1;
             str = "";
@@ -696,7 +702,7 @@ get_ipv6_extend() {
             val = (val ~ /^:/) ? "0"val : val;
             gsub(/:/, " ", val);
             val = ($2 ~ /^([1-9]|([1-9]|1[0-1])[0-9]|12[0-8])$/) ? val" "$2 : val" 128";
-            print fix_cidr(tolower(val));
+            print_fix_cidr(tolower(val));
         }' "${1}" | sort -t ' ' -k1,1n -k2,2n -k3,3n -k4,4n -k5,5n -k6,6n -k7,7n -k8,8n -k9,9n
 }
 
@@ -715,9 +721,9 @@ get_ip_extend() {
 # RETVAL:
 #  0 -- OK
 #  1 -- Failed
-cidr_merge() {
+cidr_hash_merge() {
     get_ip_extend "${1}" "${2}" \
-        | awk -v ip_proto="${1}" -v out_file_name="${3}" \
+        | awk -v ip_proto="${1}" \
             'function lz_lshift(value, count) {
                 return (value + 0) * (2 ^ (count + 0));
             } function lz_rshift(value, count) {
@@ -726,14 +732,14 @@ cidr_merge() {
                 MAX_MASK = 32;
                 MAX_FIELD_NO = 5;
                 PIPE_CMD = "sort -t '\'' '\'' -k1,1n -k2,2n -k3,3n -k4,4n -k5,5n";
-                PIPE_CMD = PIPE_CMD" | awk '\''{printf \"%u.%u.%u.%u/%u\\n\",$1,$2,$3,$4,$5;}'\'' > \""out_file_name"\"";
+                PIPE_CMD = PIPE_CMD" | awk '\''{printf \"%u.%u.%u.%u/%u\\n\",$1,$2,$3,$4,$5;}'\''";
                 if (ip_proto == "6") {
                     MAX_MASK = 128;
                     MAX_FIELD_NO = 9;
                     PIPE_CMD = "sort -t '\'' '\'' -k1,1n -k2,2n -k3,3n -k4,4n -k5,5n -k6,6n -k7,7n -k8,8n -k9,9n";
                     PIPE_CMD = PIPE_CMD" | awk '\''{printf \"%x:%x:%x:%x:%x:%x:%x:%x/%u\\n\",$1,$2,$3,$4,$5,$6,$7,$8,$9;}'\''";
                     PIPE_CMD = PIPE_CMD" | sed -e '\''s/\\([:][0]\\)\\{2,7\\}/::/'\'' -e '\''s/:::/::/'\'' -e '\''s/^0::/::/'\''"
-                    PIPE_CMD = PIPE_CMD" -e '\''/^::[/]0$/d'\'' > \""out_file_name"\""
+                    PIPE_CMD = PIPE_CMD" -e '\''/^::[/]0$/d'\''"
                 }
                 BIT_WIDTH = int(MAX_MASK / (MAX_FIELD_NO - 1));
                 delete addr_arr;
@@ -743,13 +749,13 @@ cidr_merge() {
                 last_key_val = 0;
                 last_mask = 0;
                 current_mask = 0;
-                regexp_lite_str = "^([0-9]+[[:space:]]+)+";
                 regexp_str = "^([0-9]+[[:space:]]+){"(MAX_FIELD_NO - 1)"}[0-9]+$";
             } !addr_arr[$0] && $0 ~ regexp_str {
                 if (lask_key_pos == 0) {
                     last_mask = $(MAX_FIELD_NO) + 0;
                     lask_key_pos = int(last_mask / BIT_WIDTH) + 1;
-                    last_step = lz_lshift(1, (MAX_MASK - last_mask) % BIT_WIDTH);
+                    # last_step = lz_lshift(1, (MAX_MASK - last_mask) % BIT_WIDTH);
+                    last_step = 1 * (2 ^ ((MAX_MASK - last_mask) % BIT_WIDTH));
                     last_key_val = int(($(lask_key_pos) + 0) / last_step) * last_step;
                     last_addr_header = "";
                     for (i = 1; i < lask_key_pos; ++i)
@@ -765,7 +771,8 @@ cidr_merge() {
                         next;
                     last_mask = $(MAX_FIELD_NO) + 0;
                     lask_key_pos = int(last_mask / BIT_WIDTH) + 1;
-                    last_step = lz_lshift(1, (MAX_MASK - last_mask) % BIT_WIDTH);
+                    # last_step = lz_lshift(1, (MAX_MASK - last_mask) % BIT_WIDTH);
+                    last_step = 1 * (2 ^ ((MAX_MASK - last_mask) % BIT_WIDTH));
                     last_key_val = int(($(lask_key_pos) + 0) / last_step) * last_step;
                     last_addr_header = "";
                     for (i = 1; i < lask_key_pos; ++i)
@@ -776,71 +783,187 @@ cidr_merge() {
                 if (current_mask < $(MAX_FIELD_NO) + 0)
                     current_mask = $(MAX_FIELD_NO) + 0;
             } END {
-                if (length(addr_arr) == 0) {
-                    delete addr_arr;
-                    exit;
-                }
-                delete new_addr_arr;
+                if (length(addr_arr) == 0) exit;
                 delete del_addr_arr;
-                mask = 0;
+                delete arr;
                 bit_index = MAX_MASK - current_mask;
                 while (bit_index < MAX_MASK ) {
-                    mask = MAX_MASK - bit_index;
-                    step = lz_lshift(1, bit_index % BIT_WIDTH);
+                    # step = lz_lshift(1, bit_index % BIT_WIDTH);
+                    step = 1 * (2 ^ (bit_index % BIT_WIDTH));
                     key_pos = MAX_FIELD_NO - int(bit_index / BIT_WIDTH) - 1;
-                    regexp_mask = "[[:space:]]"mask"$";
+                    regexp_mask = "[[:space:]]"(MAX_MASK - bit_index)"$";
+                    modified = 0;
                     for (ip_item in addr_arr) {
                         if (addr_arr[ip_item] ~ regexp_mask) {
                             split(ip_item, arr, /[[:space:]]+/);
-                            if (arr[MAX_FIELD_NO] + 0 == mask \
-                                && int((arr[key_pos] + 0) / step) % 2 == 0) {
-                                key_val = arr[key_pos] + 0;
+                            if (int((arr[key_pos] + 0) / step) % 2 == 0) {
                                 addr_header = "";
                                 for (i = 1; i < key_pos; ++i)
                                     addr_header = addr_header" "arr[i];
-                                sub(/^[[:space:]]+/, "", addr_header);
                                 next_item = "";
                                 for (i = key_pos + 1; i <= MAX_FIELD_NO; ++i)
                                     next_item = next_item" "arr[i];
-                                next_item = addr_header" "(key_val + step)next_item;
+                                next_item = addr_header" "(arr[key_pos] + step)next_item;
                                 sub(/^[[:space:]]+/, "", next_item);
-                                new_addr = ip_item;
-                                sub(/[[:space:]]+[0-9]+$/, " "(arr[MAX_FIELD_NO] - 1), new_addr);
                                 if (next_item in addr_arr \
-                                    && addr_arr[next_item] == next_item) {
-                                    new_addr_arr[new_addr] = "";
+                                    && addr_arr[next_item]) {
                                     del_addr_arr[ip_item] = "";
-                                    del_addr_arr[next_item] = "";
                                     addr_arr[ip_item] = "";
+                                    sub(/[[:space:]]+[0-9]+$/, " "(arr[MAX_FIELD_NO] - 1), ip_item);
+                                    addr_arr[ip_item] = ip_item;
+                                    del_addr_arr[next_item] = "";
                                     addr_arr[next_item] = "";
+                                    if (!modified) modified = 1;
                                 }
                             }
-                            delete arr;
                         }
                     }
-                    for (del_ip_item in del_addr_arr)
-                        delete addr_arr[del_ip_item];
-                    delete del_addr_arr;
-                    for (new_ip_item in new_addr_arr)
-                        addr_arr[new_ip_item] = new_ip_item;
-                    delete new_addr_arr;
+                    if (modified) {
+                        for (del_ip_item in del_addr_arr)
+                            delete addr_arr[del_ip_item];
+                        delete del_addr_arr;
+                    }
                     bit_index++;
                 }
-                for (ip_item in addr_arr) {
-                    if (addr_arr[ip_item] == ip_item)
-                        print ip_item | PIPE_CMD;
-                }
+                for (ip_item in addr_arr)
+                    print ip_item | PIPE_CMD;
                 close(PIPE_CMD);
-                delete new_addr_arr;
-                delete del_addr_arr;
+            }' > "${3}"
+    return "0"
+}
+
+# PRAMETERS:
+# $1 : 4 -- ipv4 | 6 -- ipv6
+# $2 : full path filename of the input file
+# $3 : Full path filename of the output file
+# RETVAL:
+#  0 -- OK
+#  1 -- Failed
+cidr_seq_merge() {
+    get_ip_extend "${1}" "${2}" \
+        | awk -v ip_proto="${1}" \
+            'function lz_lshift(value, count) {
+                return (value + 0) * (2 ^ (count + 0));
+            } function lz_rshift(value, count) {
+                return int((value + 0) / (2 ^ (count + 0)));
+            } BEGIN {
+                MAX_MASK = 32;
+                MAX_FIELD_NO = 5;
+                if (ip_proto == "6") {
+                    MAX_MASK = 128;
+                    MAX_FIELD_NO = 9;
+                }
+                BIT_WIDTH = int(MAX_MASK / (MAX_FIELD_NO - 1));
                 delete addr_arr;
-            }'
+                delete keys_arr;
+                item_count = 0;
+                last_addr_header = "";
+                lask_key_pos = 0;
+                last_step = 0;
+                last_key_val = 0;
+                last_mask = 0;
+                current_mask = 0;
+                regexp_str = "^([0-9]+[[:space:]]+){"(MAX_FIELD_NO - 1)"}[0-9]+$";
+            } !addr_arr[$0] && $0 ~ regexp_str {
+                if (lask_key_pos == 0) {
+                    last_mask = $(MAX_FIELD_NO) + 0;
+                    lask_key_pos = int(last_mask / BIT_WIDTH) + 1;
+                    # last_step = lz_lshift(1, (MAX_MASK - last_mask) % BIT_WIDTH);
+                    last_step = 1 * (2 ^ ((MAX_MASK - last_mask) % BIT_WIDTH));
+                    last_key_val = int(($(lask_key_pos) + 0) / last_step) * last_step;
+                    last_addr_header = "";
+                    for (i = 1; i < lask_key_pos; ++i)
+                        last_addr_header = last_addr_header" "$(i);
+                    sub(/^[[:space:]]+/, "", last_addr_header);
+                    addr_arr[++item_count] = $0;
+                    keys_arr[$0] = item_count;
+                } else {
+                    regexp_addr_header = (last_addr_header != "") ? "^"last_addr_header"[[:space:]]" : "^[0-9]+[[:space:]]";
+                    if ($0 ~ regexp_addr_header \
+                        && $(lask_key_pos) + 0 >= last_key_val \
+                        && $(lask_key_pos) + 0 < last_key_val + last_step \
+                        && last_mask < $(MAX_FIELD_NO) + 0)
+                        next;
+                    last_mask = $(MAX_FIELD_NO) + 0;
+                    lask_key_pos = int(last_mask / BIT_WIDTH) + 1;
+                    # last_step = lz_lshift(1, (MAX_MASK - last_mask) % BIT_WIDTH);
+                    last_step = 1 * (2 ^ ((MAX_MASK - last_mask) % BIT_WIDTH));
+                    last_key_val = int(($(lask_key_pos) + 0) / last_step) * last_step;
+                    last_addr_header = "";
+                    for (i = 1; i < lask_key_pos; ++i)
+                        last_addr_header = last_addr_header" "$(i);
+                    sub(/^[[:space:]]+/, "", last_addr_header);
+                    addr_arr[++item_count] = $0;
+                    keys_arr[$0] = item_count;
+                }
+                if (current_mask < $(MAX_FIELD_NO) + 0)
+                    current_mask = $(MAX_FIELD_NO) + 0;
+            } END {
+                if (length(addr_arr) == 0) exit;
+                delete arr;
+                bit_index = MAX_MASK - current_mask;
+                while (bit_index < MAX_MASK ) {
+                    # step = lz_lshift(1, bit_index % BIT_WIDTH);
+                    step = 1 * (2 ^ (bit_index % BIT_WIDTH));
+                    key_pos = MAX_FIELD_NO - int(bit_index / BIT_WIDTH) - 1;
+                    regexp_mask = "[[:space:]]"(MAX_MASK - bit_index)"$";
+                    for (item_no = 1; item_no <= item_count; ++item_no) {
+                        if (addr_arr[item_no] ~ regexp_mask) {
+                            split(addr_arr[item_no], arr, /[[:space:]]+/);
+                            if (int((arr[key_pos] + 0) / step) % 2 == 0) {
+                                addr_header = "";
+                                for (i = 1; i < key_pos; ++i)
+                                    addr_header = addr_header" "arr[i];
+                                next_item = "";
+                                for (i = key_pos + 1; i <= MAX_FIELD_NO; ++i)
+                                    next_item = next_item" "arr[i];
+                                next_item = addr_header" "(arr[key_pos] + step)next_item;
+                                sub(/^[[:space:]]+/, "", next_item);
+                                if (next_item in keys_arr) {
+                                    delete keys_arr[addr_arr[item_no]];
+                                    sub(/[[:space:]]+[0-9]+$/, " "(arr[MAX_FIELD_NO] - 1), addr_arr[item_no]);
+                                    keys_arr[addr_arr[item_no]] = item_no;
+                                    item_no = keys_arr[next_item] + 0;
+                                    delete addr_arr[keys_arr[next_item]];
+                                    delete keys_arr[next_item];
+                                }
+                            }
+                        }
+                    }
+                    bit_index++;
+                }
+                if (ip_proto == "4") {
+                    for (i = 1; i <= item_count; ++i) {
+                        if (i in addr_arr) {
+                            split(addr_arr[i], arr, /[[:space:]]+/);
+                            printf "%s.%s.%s.%s/%s\n", arr[1], arr[2], arr[3], arr[4], arr[5];
+                        }
+                    }
+                } else if (ip_proto == "6") {
+                    for (i = 1; i <= item_count; ++i) {
+                        if (i in addr_arr) {
+                            split(addr_arr[i], arr, /[[:space:]]+/);
+                            ipv6_str = sprintf("%x:%x:%x:%x:%x:%x:%x:%x/%u", 
+                                        arr[1], arr[2], arr[3], arr[4], 
+                                        arr[5], arr[6], arr[7], arr[8], arr[9]);
+                            sub(/(:0){2,7}/, "::", ipv6_str);
+                            sub(/:::/, "::", ipv6_str);
+                            sub(/^0::/, "::", ipv6_str);
+                            if (ipv6_str !~ /^::\/0$/) print ipv6_str;
+                        }
+                    }
+                }
+            }' > "${3}"
     return "0"
 }
 
 async_cidr_task() {
     { { [ "${1}" != "4" ] && [ "${1}" != "6" ]; } || [ ! -f "${2}" ] || [ ! -d "${3%/*}" ]; } && { echo ""; return "1"; }
-    cidr_merge "${1}" "${2}" "${3}" &
+    if [ "${CIDR_MERGE_ALGO}" = "1" ]; then
+        cidr_seq_merge "${1}" "${2}" "${3}" &
+    else
+        cidr_hash_merge "${1}" "${2}" "${3}" &
+    fi
     ASYNC_PID="${!}"
     while true
     do
@@ -858,6 +981,11 @@ async_cidr_task() {
 get_ipv4_cidr_data() {
     [ "${IPV4_DATA}" != "0" ] && return "0"
     lz_echo "Generating IPv4 CIDR Data takes some time."
+    if [ "${CIDR_MERGE_ALGO}" = "1" ]; then
+        lz_echo "Sequential Merging (Sequential Index Access)"
+    else
+        lz_echo "Hash Merging (Hash Table Random Access)"
+    fi
     lz_echo "Don't interrupt & Please wait......"
     local index="0" sfname="" fname="" total="0"
     until [ "${index}" -gt "10" ]
@@ -879,6 +1007,11 @@ get_ipv4_cidr_data() {
 get_ipv6_cidr_data() {
     [ "${IPV6_DATA}" != "0" ] && return "0"
     lz_echo "Generating IPv6 CIDR Data takes some time."
+    if [ "${CIDR_MERGE_ALGO}" = "1" ]; then
+        lz_echo "Sequential Merging (Sequential Index Access)"
+    else
+        lz_echo "Hash Merging (Hash Table Random Access)"
+    fi
     lz_echo "Don't interrupt & Please wait......"
     local index="0" sfname="" fname="" total="0"
     until [ "${index}" -gt "10" ]
@@ -938,6 +1071,11 @@ cidr_merge_cmd() {
         lz_echo "Generating IPv4 CIDR Data takes some time."
     elif [ "${2}" = "6" ]; then
         lz_echo "Generating IPv6 CIDR Data takes some time."
+    fi
+    if [ "${CIDR_MERGE_ALGO}" = "1" ]; then
+        lz_echo "Sequential Merging (Sequential Index Access)"
+    else
+        lz_echo "Hash Merging (Hash Table Random Access)"
     fi
     lz_echo "Don't interrupt & Please wait......"
     if async_cidr_task "${2}" "${3}" "${4}" "0"; then
@@ -1068,7 +1206,7 @@ get_file_time_stamp() {
 
 show_header() {
     BEGIN_TIME="$( date +%s -d "$( date +"%F %T" )" )"
-    [ -z "${LZ_VERSION}" ] && LZ_VERSION="v1.1.3"
+    [ -z "${LZ_VERSION}" ] && LZ_VERSION="v1.1.4"
     lz_echo
     lz_echo "LZ ISPRO ${LZ_VERSION} script commands start......"
     lz_echo "By LZ (larsonzhang@gmail.com)"
