@@ -1,5 +1,5 @@
 #!/bin/sh
-# lzispro.sh v1.1.4
+# lzispro.sh v1.1.5
 # By LZ 妙妙呜 (larsonzhang@gmail.com)
 
 # Multi process parallel acquisition tool for IP address data of ISP network operators in China
@@ -165,7 +165,7 @@ REGEX_IPV6_NET="${REGEX_IPV6_NET}([/]([1-9]|([1-9]|1[0-1])[0-9]|12[0-8]))?"
 REGEX_IPV6="${REGEX_IPV6_NET%([[]/[]](*}"
 REGEX_SED_IPV6_NET="$( echo "${REGEX_IPV6_NET}" | sed 's/[(){}|+?]/\\&/g' )"
 
-LZ_VERSION="v1.1.4"
+LZ_VERSION="v1.1.5"
 
 # ------------------ Function -------------------
 
@@ -749,6 +749,7 @@ cidr_hash_merge() {
                 last_key_val = 0;
                 last_mask = 0;
                 current_mask = 0;
+                min_mask = MAX_MASK + 1;
                 regexp_str = "^([0-9]+[[:space:]]+){"(MAX_FIELD_NO - 1)"}[0-9]+$";
             } !addr_arr[$0] && $0 ~ regexp_str {
                 if (lask_key_pos == 0) {
@@ -782,16 +783,19 @@ cidr_hash_merge() {
                 }
                 if (current_mask < $(MAX_FIELD_NO) + 0)
                     current_mask = $(MAX_FIELD_NO) + 0;
+                if (min_mask > $(MAX_FIELD_NO) + 0)
+                    min_mask = $(MAX_FIELD_NO) + 0;
             } END {
                 if (length(addr_arr) == 0) exit;
                 delete del_addr_arr;
                 delete arr;
                 bit_index = MAX_MASK - current_mask;
                 while (bit_index < MAX_MASK ) {
+                    mask = MAX_MASK - bit_index;
                     # step = lz_lshift(1, bit_index % BIT_WIDTH);
                     step = 1 * (2 ^ (bit_index % BIT_WIDTH));
                     key_pos = MAX_FIELD_NO - int(bit_index / BIT_WIDTH) - 1;
-                    regexp_mask = "[[:space:]]"(MAX_MASK - bit_index)"$";
+                    regexp_mask = "[[:space:]]"mask"$";
                     modified = 0;
                     for (ip_item in addr_arr) {
                         if (addr_arr[ip_item] ~ regexp_mask) {
@@ -822,7 +826,8 @@ cidr_hash_merge() {
                         for (del_ip_item in del_addr_arr)
                             delete addr_arr[del_ip_item];
                         delete del_addr_arr;
-                    }
+                    } if (mask <= min_mask)
+                        break;
                     bit_index++;
                 }
                 for (ip_item in addr_arr)
@@ -863,6 +868,7 @@ cidr_seq_merge() {
                 last_key_val = 0;
                 last_mask = 0;
                 current_mask = 0;
+                min_mask = MAX_MASK + 1;
                 regexp_str = "^([0-9]+[[:space:]]+){"(MAX_FIELD_NO - 1)"}[0-9]+$";
             } !addr_arr[$0] && $0 ~ regexp_str {
                 if (lask_key_pos == 0) {
@@ -898,15 +904,19 @@ cidr_seq_merge() {
                 }
                 if (current_mask < $(MAX_FIELD_NO) + 0)
                     current_mask = $(MAX_FIELD_NO) + 0;
+                if (min_mask > $(MAX_FIELD_NO) + 0)
+                    min_mask = $(MAX_FIELD_NO) + 0;
             } END {
                 if (length(addr_arr) == 0) exit;
                 delete arr;
                 bit_index = MAX_MASK - current_mask;
                 while (bit_index < MAX_MASK ) {
+                    mask = MAX_MASK - bit_index;
                     # step = lz_lshift(1, bit_index % BIT_WIDTH);
                     step = 1 * (2 ^ (bit_index % BIT_WIDTH));
                     key_pos = MAX_FIELD_NO - int(bit_index / BIT_WIDTH) - 1;
-                    regexp_mask = "[[:space:]]"(MAX_MASK - bit_index)"$";
+                    regexp_mask = "[[:space:]]"mask"$";
+                    modified = 0;
                     for (item_no = 1; item_no <= item_count; ++item_no) {
                         if (addr_arr[item_no] ~ regexp_mask) {
                             split(addr_arr[item_no], arr, /[[:space:]]+/);
@@ -926,10 +936,13 @@ cidr_seq_merge() {
                                     item_no = keys_arr[next_item] + 0;
                                     delete addr_arr[keys_arr[next_item]];
                                     delete keys_arr[next_item];
+                                    if (!modified) modified = 1;
                                 }
                             }
                         }
                     }
+                    if (!modified && mask <= min_mask)
+                        break;
                     bit_index++;
                 }
                 if (ip_proto == "4") {
@@ -1206,7 +1219,7 @@ get_file_time_stamp() {
 
 show_header() {
     BEGIN_TIME="$( date +%s -d "$( date +"%F %T" )" )"
-    [ -z "${LZ_VERSION}" ] && LZ_VERSION="v1.1.4"
+    [ -z "${LZ_VERSION}" ] && LZ_VERSION="v1.1.5"
     lz_echo
     lz_echo "LZ ISPRO ${LZ_VERSION} script commands start......"
     lz_echo "By LZ (larsonzhang@gmail.com)"
