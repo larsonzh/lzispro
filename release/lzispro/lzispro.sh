@@ -826,7 +826,7 @@ cidr_hash_merge() {
                         for (del_ip_item in del_addr_arr)
                             delete addr_arr[del_ip_item];
                         delete del_addr_arr;
-                    } if (mask <= min_mask)
+                    } else if (mask <= min_mask)
                         break;
                     bit_index++;
                 }
