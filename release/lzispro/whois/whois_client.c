@@ -91,6 +91,7 @@ WhoisServer servers[] = {
     {"iana", "whois.iana.org", "Internet Assigned Numbers Authority"},
     {NULL, NULL, NULL}  // End of list marker
 };
+
 // Global cache variables
 static DNSCacheEntry *dns_cache = NULL;
 static ConnectionCacheEntry *connection_cache = NULL;
@@ -105,7 +106,7 @@ void print_usage(const char *program_name);
 void print_version();
 void print_servers();
 int is_private_ip(const char *ip);
-int validate_config();  // 确保返回0表示失败，1表示成功
+int validate_config();  // Ensure that returning 0 indicates failure and 1 indicates success
 void init_caches();
 void cleanup_caches();
 size_t get_free_memory();  // Changed to size_t for consistency
@@ -470,13 +471,13 @@ void set_cached_dns(const char *domain, const char *ip) {
         return;
     }
     
-    // 查找空槽或最旧的缓存项
+    // Look for an empty slot or the oldest cache item
     int oldest_index = 0;
     time_t oldest_time = time(NULL);
     
-    for (int i = 0; i < allocated_dns_cache_size; i++) {  // 使用 allocated_dns_cache_size
+    for (int i = 0; i < allocated_dns_cache_size; i++) {  // Use allocated_dns_cache_size
         if (dns_cache[i].domain == NULL) {
-            // 找到空槽
+            // Find an empty slot
             dns_cache[i].domain = strdup(domain);
             dns_cache[i].ip = strdup(ip);
             dns_cache[i].timestamp = time(NULL);
@@ -557,7 +558,7 @@ void set_cached_connection(const char *host, int port, int sockfd) {
     int oldest_index = 0;
     time_t oldest_time = time(NULL);
     
-    for (int i = 0; i < allocated_connection_cache_size; i++) {  // 使用 allocated_connection_cache_size
+    for (int i = 0; i < allocated_connection_cache_size; i++) {  // Use allocated_connection_cache_size
         if (connection_cache[i].host == NULL) {
             // Found empty slot
             connection_cache[i].host = strdup(host);
@@ -585,7 +586,7 @@ void set_cached_connection(const char *host, int port, int sockfd) {
     pthread_mutex_unlock(&cache_mutex);
 }
 
-//6. 网络连接函数实现
+//6. Find an empty slot
 char *resolve_domain(const char *domain) {
     if (g_config.debug) printf("[DEBUG] Resolving domain: %s\n", domain);
     
@@ -610,7 +611,7 @@ char *resolve_domain(const char *domain) {
         return NULL;
     }
 
-    // 尝试所有地址
+    // Try all addresses
     for (p = res; p != NULL; p = p->ai_next) {
         void *addr;
         char ipstr[INET6_ADDRSTRLEN];
@@ -629,7 +630,7 @@ char *resolve_domain(const char *domain) {
             continue; // Memory allocation failed, skip
         }
         
-        // 简单测试连接性（可选）
+        // Perform a simple connectivity test (optional)
         int test_sock = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
         if (test_sock != -1) {
             close(test_sock);
@@ -656,7 +657,7 @@ int connect_to_server(const char *host, int port, int *sockfd) {
     if (cached_sockfd != -1) {
         // Check if connection is still valid
         fd_set check_fds;
-        struct timeval timeout = {0, 1000}; // 1ms超时
+        struct timeval timeout = {0, 1000}; // 1ms timeout
         
         FD_ZERO(&check_fds);
         FD_SET(cached_sockfd, &check_fds);
@@ -832,9 +833,9 @@ char *receive_response(int sockfd) {
         if (g_config.debug) printf("[DEBUG] Received %zd bytes, total %zd bytes\n", n, total_bytes);
         
         // Important improvement: don't exit early, ensure complete response is received
-        // 只检查基本结束条件，但继续读取直到超时
+        // Only check the basic termination conditions, but continue reading until timeout
         if (total_bytes > 1000) {
-            // 检查是否已经收到完整的WHOIS响应
+            // Check if a complete WHOIS response has already been received
             if (strstr(buffer, "source:") || strstr(buffer, "person:") || 
                 strstr(buffer, "inetnum:") || strstr(buffer, "NetRange:")) {
                 // If contains key fields, can be considered complete response
@@ -863,7 +864,7 @@ char *receive_response(int sockfd) {
     return NULL;
 }
 
-//7. WHOIS协议处理函数实现
+//7. Implementation of the WHOIS protocol processing function
 char *extract_refer_server(const char *response) {
     if (g_config.debug) printf("[DEBUG] ===== EXTRACTING REFER SERVER =====\n");
     
@@ -942,7 +943,7 @@ char *extract_refer_server(const char *response) {
         }
     }
     
-    // 原有的解析逻辑保持不变
+    // The original parsing logic remains unchanged
     char *response_copy = strdup(response);
     if (!response_copy) {
         if (g_config.debug) printf("[DEBUG] Memory allocation failed for response copy\n");
@@ -1587,7 +1588,7 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-
+    
     return 0;
 }
 
