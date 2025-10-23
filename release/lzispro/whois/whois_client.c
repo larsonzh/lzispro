@@ -6,6 +6,7 @@
 #include <limits.h>
 #include <netdb.h>
 #include <netinet/in.h>
+#include <fcntl.h>
 #include <pthread.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -50,6 +51,9 @@ typedef struct {
     size_t connection_cache_size;  // Connection cache entries count
     int cache_timeout;             // Cache timeout in seconds
     int debug;                     // Debug mode flag
+    int max_redirects;             // Maximum redirect/follow count
+    int no_redirect;               // Disable following redirects when set
+    int plain_mode;                // Suppress header line when set
 } Config;
 
 // Global configuration, initialized with macro definitions
@@ -60,7 +64,10 @@ Config g_config = {.whois_port = DEFAULT_WHOIS_PORT,
                    .dns_cache_size = DNS_CACHE_SIZE,
                    .connection_cache_size = CONNECTION_CACHE_SIZE,
                    .cache_timeout = CACHE_TIMEOUT,
-                   .debug = DEBUG};
+                   .debug = DEBUG,
+                   .max_redirects = MAX_REDIRECTS,
+                   .no_redirect = 0,
+                   .plain_mode = 0};
 
 // DNS cache structure - stores domain to IP mapping
 typedef struct {
@@ -159,7 +166,6 @@ size_t parse_size_with_unit(const char* str) {
     char* end;
     errno = 0;
     unsigned long long size = strtoull(str, &end, 10);
-
     // Check for conversion errors
     if (errno == ERANGE) {
         return SIZE_MAX;
@@ -235,6 +241,10 @@ void print_usage(const char* program_name) {
            MAX_RETRIES);
     printf("  -t, --timeout SECONDS    Set timeout in seconds (default: %d)\n",
            TIMEOUT_SEC);
+    printf("  -R, --max-redirects N    Set max referral redirects (default: %d)\n",
+        MAX_REDIRECTS);
+    printf("  -Q, --no-redirect        Do not follow referral redirects\n");
+    printf("  -P, --plain              Suppress header line (no '=== Query: ... ===')\n");
     printf("  -d, --dns-cache SIZE     Set DNS cache size (default: %d)\n",
            DNS_CACHE_SIZE);
     printf(
@@ -253,6 +263,8 @@ void print_usage(const char* program_name) {
     printf("  %s 8.8.8.8\n", program_name);
     printf("  %s --host apnic 103.89.208.0\n", program_name);
     printf("  %s --timeout 10 --retries 3 8.8.8.8\n", program_name);
+    printf("  %s -Q 8.8.8.8  (no redirect)\n", program_name);
+    printf("  %s -P 8.8.8.8  (no header line)\n", program_name);
     printf("  %s --debug --buffer-size 1048576 8.8.8.8\n", program_name);
 }
 
@@ -298,6 +310,10 @@ int validate_global_config() {
     }
     if (g_config.cache_timeout <= 0) {
         fprintf(stderr, "Error: Invalid cache timeout in config\n");
+        return 0;
+    }
+    if (g_config.max_redirects < 0) {
+        fprintf(stderr, "Error: Invalid max redirects in config\n");
         return 0;
     }
     return 1;
@@ -451,19 +467,30 @@ void report_memory_error(const char* function, size_t size) {
 }
 
 void log_message(const char* level, const char* format, ...) {
-    if (g_config.debug) {
-        va_list args;
-        va_start(args, format);
-
-        // Add timestamp to the log
-        time_t now = time(NULL);
-        struct tm* t = localtime(&now);
-        fprintf(stderr, "[%02d:%02d:%02d] [%s] ", t->tm_hour, t->tm_min, t->tm_sec, level);
-
-        vfprintf(stderr, format, args);
-        fprintf(stderr, "\n");
-        va_end(args);
+    // Always show ERROR/WARN level regardless of debug switch,
+    // otherwise only print when debug is enabled.
+    int always = 0;
+    if (level) {
+        if (strcmp(level, "ERROR") == 0 || strcmp(level, "WARN") == 0 ||
+            strcmp(level, "WARNING") == 0) {
+            always = 1;
+        }
     }
+
+    if (!g_config.debug && !always) return;
+
+    va_list args;
+    va_start(args, format);
+
+    // Add timestamp to the log
+    time_t now = time(NULL);
+    struct tm* t = localtime(&now);
+    fprintf(stderr, "[%02d:%02d:%02d] [%s] ", t ? t->tm_hour : 0, t ? t->tm_min : 0,
+            t ? t->tm_sec : 0, level ? level : "LOG");
+
+    vfprintf(stderr, format, args);
+    fprintf(stderr, "\n");
+    va_end(args);
 }
 
 int validate_cache_sizes() {
@@ -518,21 +545,13 @@ const char* get_known_ip(const char* domain) {
         return NULL;
     }
 
-    // IPv4 WHOIS servers
+    // IPv4 WHOIS servers (use IPv4 literals for maximum compatibility in fallback)
     if (strcmp(domain, "whois.apnic.net") == 0) return "202.12.29.20";
     if (strcmp(domain, "whois.ripe.net") == 0) return "193.0.6.135";
     if (strcmp(domain, "whois.arin.net") == 0) return "199.212.0.43";
     if (strcmp(domain, "whois.lacnic.net") == 0) return "200.3.14.10";
     if (strcmp(domain, "whois.afrinic.net") == 0) return "196.216.2.6";
     if (strcmp(domain, "whois.iana.org") == 0) return "192.0.32.59";
-
-    // IPv6 WHOIS servers
-    if (strcmp(domain, "whois.apnic.net") == 0) return "2001:dc0:2001:11::200";
-    if (strcmp(domain, "whois.ripe.net") == 0) return "2001:67c:2e8:22::c100:68b";
-    if (strcmp(domain, "whois.arin.net") == 0) return "2001:500:13::c7d";
-    if (strcmp(domain, "whois.lacnic.net") == 0) return "2001:13c7:7002:100::2";
-    if (strcmp(domain, "whois.afrinic.net") == 0) return "2001:43f8:7d::1";
-    if (strcmp(domain, "whois.iana.org") == 0) return "2620:0:2830:200::59";
 
     log_message("ERROR", "Unknown WHOIS server: %s", domain);
     return NULL;
@@ -712,7 +731,7 @@ char* resolve_domain(const char* domain) {
         return NULL;
     }
 
-    // Try all addresses
+    // Try all addresses and pick the first one
     for (p = res; p != NULL; p = p->ai_next) {
         void* addr;
         char ipstr[INET6_ADDRSTRLEN];
@@ -728,29 +747,15 @@ char* resolve_domain(const char* domain) {
         }
 
         inet_ntop(p->ai_family, addr, ipstr, sizeof ipstr);
-
-        // Add brackets for IPv6 addresses
-        if (p->ai_family == AF_INET6) {
-            char formatted_ip[INET6_ADDRSTRLEN + 2];
-            snprintf(formatted_ip, sizeof(formatted_ip), "[%s]", ipstr);
-            ip = strdup(formatted_ip);
-        } else {
-            ip = strdup(ipstr);
-        }
+        ip = strdup(ipstr);  // Keep raw literal; do NOT wrap IPv6 with []
 
         if (ip == NULL) {
             log_message("ERROR", "Memory allocation failed for IP address");
             continue;
         }
-
-        // Perform a simple connectivity test
-        int test_sock = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
-        if (test_sock != -1) {
-            close(test_sock);
-            break;
-        }
-        free(ip);
-        ip = NULL;
+        // We only resolve and return the textual address here;
+        // connectivity will be handled by connect_to_server().
+        break;
     }
 
     freeaddrinfo(res);
@@ -820,21 +825,50 @@ int connect_to_server(const char* host, int port, int* sockfd) {
             continue;
         }
 
-        // Set socket timeouts
-        struct timeval timeout = {g_config.timeout_sec, 0};
-        setsockopt(*sockfd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
-        setsockopt(*sockfd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
+        // Set non-blocking for connect timeout handling
+        int flags = fcntl(*sockfd, F_GETFL, 0);
+        if (flags < 0) flags = 0;
+        fcntl(*sockfd, F_SETFL, flags | O_NONBLOCK);
 
-        if (connect(*sockfd, p->ai_addr, p->ai_addrlen) == 0) {
+        int ret = connect(*sockfd, p->ai_addr, p->ai_addrlen);
+        if (ret == 0) {
+            // Connected immediately
+            fcntl(*sockfd, F_SETFL, flags);
+            struct timeval timeout_io = {g_config.timeout_sec, 0};
+            setsockopt(*sockfd, SOL_SOCKET, SO_SNDTIMEO, &timeout_io, sizeof(timeout_io));
+            setsockopt(*sockfd, SOL_SOCKET, SO_RCVTIMEO, &timeout_io, sizeof(timeout_io));
             log_message("DEBUG", "Successfully connected to %s:%d", host, port);
-
-            // Add new connection to cache
             set_cached_connection(host, port, *sockfd);
             freeaddrinfo(res);
             return 0;
+        } else if (ret < 0 && errno == EINPROGRESS) {
+            // Wait for writability within timeout
+            fd_set wfds; FD_ZERO(&wfds); FD_SET(*sockfd, &wfds);
+            struct timeval tv; tv.tv_sec = g_config.timeout_sec; tv.tv_usec = 0;
+            int sel = select(*sockfd + 1, NULL, &wfds, NULL, &tv);
+            if (sel > 0) {
+                int soerr = 0; socklen_t slen = sizeof(soerr);
+                if (getsockopt(*sockfd, SOL_SOCKET, SO_ERROR, &soerr, &slen) == 0 && soerr == 0) {
+                    fcntl(*sockfd, F_SETFL, flags);
+                    struct timeval timeout_io = {g_config.timeout_sec, 0};
+                    setsockopt(*sockfd, SOL_SOCKET, SO_SNDTIMEO, &timeout_io, sizeof(timeout_io));
+                    setsockopt(*sockfd, SOL_SOCKET, SO_RCVTIMEO, &timeout_io, sizeof(timeout_io));
+                    log_message("DEBUG", "Successfully connected (non-blocking) to %s:%d", host, port);
+                    set_cached_connection(host, port, *sockfd);
+                    freeaddrinfo(res);
+                    return 0;
+                } else {
+                    log_message("ERROR", "Connect error after select to %s:%d - %s", host, port, strerror(soerr));
+                }
+            } else if (sel == 0) {
+                log_message("ERROR", "Connect timeout to %s:%d after %d sec", host, port, g_config.timeout_sec);
+            } else {
+                log_message("ERROR", "Select error during connect to %s:%d - %s", host, port, strerror(errno));
+            }
+        } else {
+            log_message("ERROR", "Connection failed to %s:%d - %s", host, port, strerror(errno));
         }
 
-        log_message("ERROR", "Connection failed to %s:%d - %s", host, port, strerror(errno));
         close(*sockfd);
     }
 
@@ -1205,6 +1239,12 @@ char* extract_refer_server(const char* response) {
         free(web_link);
     }
 
+    // Avoid leaking a partially parsed whois_server token
+    if (whois_server) {
+        free(whois_server);
+        whois_server = NULL;
+    }
+
     // If no explicit server found, infer from response content
     if (g_config.debug)
         printf(
@@ -1385,6 +1425,8 @@ char* perform_whois_query(const char* target, int port, const char* query) {
     char* current_query = strdup(query);
     char* combined_result = NULL;
     const char* redirect_server = NULL;
+    // Track visited redirect targets to avoid loops
+    char* visited[16] = {0};
 
     if (!current_target || !current_query) {
         log_message("ERROR", "Memory allocation failed for query parameters");
@@ -1395,7 +1437,7 @@ char* perform_whois_query(const char* target, int port, const char* query) {
 
     log_message("DEBUG", "Starting WHOIS query to %s:%d for %s", current_target, current_port, current_query);
 
-    while (redirect_count <= MAX_REDIRECTS) {
+    while (redirect_count <= g_config.max_redirects) {
         log_message("DEBUG", "===== QUERY ATTEMPT %d =====", redirect_count + 1);
         log_message("DEBUG", "Current target: %s, Query: %s", current_target, current_query);
 
@@ -1439,7 +1481,7 @@ char* perform_whois_query(const char* target, int port, const char* query) {
         }
 
         // Check if redirect is needed
-        if (needs_redirect(result)) {
+    if (!g_config.no_redirect && needs_redirect(result)) {
             log_message("DEBUG", "==== REDIRECT REQUIRED ====");
             redirect_server = extract_refer_server(result);
 
@@ -1490,14 +1532,30 @@ char* perform_whois_query(const char* target, int port, const char* query) {
                     }
                 }
 
-                // Prepare for next query
+                // Prepare for next query with loop guard
                 free(current_target);
+                int loop = 0;
+                // simple visited check to avoid A<->B loops
+                // note: visited list declared at function top
+                for (int i = 0; i < 16 && visited[i]; i++) {
+                    if (strcmp(visited[i], redirect_server) == 0) { loop = 1; break; }
+                }
+                // record visited if room
+                if (!loop) {
+                    for (int i = 0; i < 16; i++) {
+                        if (!visited[i]) { visited[i] = strdup(redirect_server); break; }
+                    }
+                }
                 current_target = strdup(redirect_server);
                 free((void*)redirect_server);
                 redirect_server = NULL;
 
                 if (!current_target) {
                     log_message("DEBUG", "Memory allocation failed for redirect target");
+                    break;
+                }
+                if (loop) {
+                    log_message("WARN", "Detected redirect loop, stop following redirects");
                     break;
                 }
 
@@ -1545,8 +1603,8 @@ char* perform_whois_query(const char* target, int port, const char* query) {
         }
     }
 
-    if (redirect_count > MAX_REDIRECTS) {
-        log_message("DEBUG", "Maximum redirects reached (%d)", MAX_REDIRECTS);
+    if (redirect_count > g_config.max_redirects) {
+        log_message("DEBUG", "Maximum redirects reached (%d)", g_config.max_redirects);
 
         // Add warning message
         if (combined_result) {
@@ -1557,7 +1615,7 @@ char* perform_whois_query(const char* target, int port, const char* query) {
                          "Warning: Maximum redirects reached (%d).\n"
                          "You may need to manually query the final server for "
                          "complete information.\n\n%s",
-                         MAX_REDIRECTS, combined_result);
+                         g_config.max_redirects, combined_result);
                 free(combined_result);
                 combined_result = new_result;
             }
@@ -1566,6 +1624,8 @@ char* perform_whois_query(const char* target, int port, const char* query) {
 
     // Cleanup resources
     if (redirect_server) free((void*)redirect_server);
+    // free visited records
+    for (int i = 0; i < 16; i++) { if (visited[i]) free(visited[i]); }
     free(current_target);
     free(current_query);
 
@@ -1616,6 +1676,9 @@ int main(int argc, char* argv[]) {
         {"dns-cache", required_argument, 0, 'd'},
         {"conn-cache", required_argument, 0, 'c'},
         {"cache-timeout", required_argument, 0, 'T'},
+        {"max-redirects", required_argument, 0, 'R'},
+        {"no-redirect", no_argument, 0, 'Q'},
+        {"plain", no_argument, 0, 'P'},
         {"debug", no_argument, 0, 'D'},
         {"list", no_argument, 0, 'l'},
         {"version", no_argument, 0, 'v'},
@@ -1626,7 +1689,7 @@ int main(int argc, char* argv[]) {
     int option_index = 0;
 
     // Parse command line arguments
-    while ((opt = getopt_long(argc, argv, "h:p:b:r:t:d:c:T:DlvH", long_options,
+    while ((opt = getopt_long(argc, argv, "h:p:b:r:t:d:c:T:R:QPDlvH", long_options,
                               &option_index)) != -1) {
         switch (opt) {
             case 'h':
@@ -1711,6 +1774,19 @@ int main(int argc, char* argv[]) {
                     return 1;
                 }
                 break;
+            case 'R':
+                g_config.max_redirects = atoi(optarg);
+                if (g_config.max_redirects < 0) {
+                    fprintf(stderr, "Error: Invalid max redirects\n");
+                    return 1;
+                }
+                break;
+            case 'Q':
+                g_config.no_redirect = 1;
+                break;
+            case 'P':
+                g_config.plain_mode = 1;
+                break;
             case 'D':
                 g_config.debug = 1;
                 break;
@@ -1765,19 +1841,19 @@ int main(int argc, char* argv[]) {
         return 0;
     }
 
-    // 3. Validate arguments
+    // 3. Validate arguments / detect stdin batch mode
+    int batch_mode = 0;
+    const char* single_query = NULL;
     if (optind >= argc) {
-        fprintf(stderr, "Error: Missing query argument\n");
-        print_usage(argv[0]);
-        return 1;
-    }
-
-    const char* query = argv[optind];
-
-    // Check if it's a private IP address
-    if (is_private_ip(query)) {
-        printf("%s is a private IP address\n", query);
-        return 0;
+        if (!isatty(STDIN_FILENO)) {
+            batch_mode = 1;  // No positional query, but data is coming from stdin
+        } else {
+            fprintf(stderr, "Error: Missing query argument\n");
+            print_usage(argv[0]);
+            return 1;
+        }
+    } else {
+        single_query = argv[optind];
     }
 
     // 4. Initialize caches now (using final configuration values)
@@ -1789,44 +1865,127 @@ int main(int argc, char* argv[]) {
     if (g_config.debug) printf("[DEBUG] Caches initialized successfully\n");
 
     // 5. Continue with main logic...
-    char* target = NULL;
-    if (server_host) {
-        // Get specified server target
-        target = get_server_target(server_host);
-        if (!target) {
-            fprintf(stderr, "Error: Unknown server '%s'\n", server_host);
+    if (!batch_mode) {
+        // Single query mode
+        const char* query = single_query;
+
+        // Check if it's a private IP address
+        if (is_private_ip(query)) {
+            if (!g_config.plain_mode) {
+                printf("=== Query: %s ===\n", query);
+            }
+            printf("%s is a private IP address\n", query);
+            return 0;
+        }
+
+        char* target = NULL;
+        if (server_host) {
+            // Get specified server target
+            target = get_server_target(server_host);
+            if (!target) {
+                fprintf(stderr, "Error: Unknown server '%s'\n", server_host);
+                cleanup_caches();
+                return 1;
+            }
+        } else {
+            // Use IANA as default starting query point
+            target = strdup("whois.iana.org");
+            if (!target) {
+                fprintf(stderr,
+                        "Error: Memory allocation failed for default target\n");
+                cleanup_caches();
+                return 1;
+            }
+        }
+
+        if (g_config.debug) printf("[DEBUG] ===== MAIN QUERY START =====\n");
+        if (g_config.debug)
+            printf("[DEBUG] Final target: %s, Query: %s\n", target, query);
+
+        char* result = perform_whois_query(target, port, query);
+        free(target);
+
+        if (result) {
+            if (!g_config.plain_mode) {
+                printf("=== Query: %s ===\n", query);
+            }
+            printf("%s", result);
+            free(result);
+            return 0;
+        } else {
+            fprintf(stderr, "Error: Query failed for %s\n", query);
             cleanup_caches();
             return 1;
         }
     } else {
-        // Use IANA as default starting query point
-        target = strdup("whois.iana.org");
-        if (!target) {
-            fprintf(stderr,
-                    "Error: Memory allocation failed for default target\n");
-            cleanup_caches();
+        // Batch stdin mode: read queries line-by-line from stdin and process sequentially
+        if (g_config.debug)
+            printf("[DEBUG] ===== BATCH STDIN MODE START =====\n");
+
+        char linebuf[512];
+        int any_processed = 0;
+        while (fgets(linebuf, sizeof(linebuf), stdin)) {
+            // Trim whitespace and newline\r\n
+            size_t len = strlen(linebuf);
+            while (len > 0 && (linebuf[len - 1] == '\n' || linebuf[len - 1] == '\r' || isspace((unsigned char)linebuf[len - 1]))) {
+                linebuf[--len] = '\0';
+            }
+            char* p = linebuf;
+            while (*p && isspace((unsigned char)*p)) p++;
+            if (*p == '\0') continue;  // skip empty line
+
+            const char* query = p;
+            any_processed = 1;
+
+            // Private IP handling
+            if (is_private_ip(query)) {
+                if (!g_config.plain_mode) {
+                    printf("=== Query: %s ===\n", query);
+                }
+                printf("%s is a private IP address\n", query);
+                continue;
+            }
+
+            // Resolve target per query
+            char* target = NULL;
+            if (server_host) {
+                target = get_server_target(server_host);
+                if (!target) {
+                    fprintf(stderr, "Error: Unknown server '%s'\n", server_host);
+                    continue;
+                }
+            } else {
+                target = strdup("whois.iana.org");
+                if (!target) {
+                    fprintf(stderr, "Error: Memory allocation failed for default target\n");
+                    continue;
+                }
+            }
+
+            if (g_config.debug)
+                printf("[DEBUG] Final target: %s, Query: %s\n", target, query);
+
+            char* result = perform_whois_query(target, port, query);
+            free(target);
+            if (result) {
+                if (!g_config.plain_mode) {
+                    printf("=== Query: %s ===\n", query);
+                }
+                printf("%s", result);
+                free(result);
+            } else {
+                fprintf(stderr, "Error: Query failed for %s\n", query);
+            }
+        }
+
+        // If nothing was processed (e.g., empty stdin), treat as error for consistency
+        if (!any_processed) {
+            fprintf(stderr, "Error: Missing query argument and no stdin data\n");
+            print_usage(argv[0]);
             return 1;
         }
+
+        return 0;
     }
-
-    if (g_config.debug) printf("[DEBUG] ===== MAIN QUERY START =====\n");
-    if (g_config.debug)
-        printf("[DEBUG] Final target: %s, Query: %s\n", target, query);
-
-    // 6. Execute query
-    // Execute WHOIS query
-    char* result = perform_whois_query(target, port, query);
-    free(target);
-
-    if (result) {
-        printf("%s", result);
-        free(result);
-    } else {
-        fprintf(stderr, "Error: Query failed for %s\n", query);
-        cleanup_caches();
-        return 1;
-    }
-
-    return 0;
 }
 
