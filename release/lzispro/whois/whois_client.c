@@ -47,6 +47,8 @@ typedef struct {
     size_t buffer_size;            // Response buffer size
     int max_retries;               // Maximum retry count
     int timeout_sec;               // Timeout in seconds
+    int retry_interval_ms;         // Base sleep between retries in milliseconds
+    int retry_jitter_ms;           // Additional random jitter in milliseconds
     size_t dns_cache_size;         // DNS cache entries count
     size_t connection_cache_size;  // Connection cache entries count
     int cache_timeout;             // Cache timeout in seconds
@@ -61,6 +63,8 @@ Config g_config = {.whois_port = DEFAULT_WHOIS_PORT,
                    .buffer_size = BUFFER_SIZE,
                    .max_retries = MAX_RETRIES,
                    .timeout_sec = TIMEOUT_SEC,
+                   .retry_interval_ms = 300,
+                   .retry_jitter_ms = 300,
                    .dns_cache_size = DNS_CACHE_SIZE,
                    .connection_cache_size = CONNECTION_CACHE_SIZE,
                    .cache_timeout = CACHE_TIMEOUT,
@@ -144,7 +148,7 @@ char* receive_response(int sockfd);
 char* extract_refer_server(const char* response);
 int is_authoritative_response(const char* response);
 int needs_redirect(const char* response);
-char* perform_whois_query(const char* target, int port, const char* query);
+char* perform_whois_query(const char* target, int port, const char* query, char** authoritative_server_out);
 char* get_server_target(const char* server_input);
 
 // Main function
@@ -241,9 +245,14 @@ void print_usage(const char* program_name) {
            MAX_RETRIES);
     printf("  -t, --timeout SECONDS    Set timeout in seconds (default: %d)\n",
            TIMEOUT_SEC);
+    printf("  -i, --retry-interval-ms MS  Base wait between retries in ms (default: %d)\n",
+        g_config.retry_interval_ms);
+    printf("  -J, --retry-jitter-ms MS    Add up to MS random jitter to retry wait (default: %d)\n",
+        g_config.retry_jitter_ms);
     printf("  -R, --max-redirects N    Set max referral redirects (default: %d)\n",
         MAX_REDIRECTS);
     printf("  -Q, --no-redirect        Do not follow referral redirects\n");
+    printf("  -B, --batch              Read queries from stdin (batch mode)\n");
     printf("  -P, --plain              Suppress header line (no '=== Query: ... ===')\n");
     printf("  -d, --dns-cache SIZE     Set DNS cache size (default: %d)\n",
            DNS_CACHE_SIZE);
@@ -264,14 +273,14 @@ void print_usage(const char* program_name) {
     printf("  %s --host apnic 103.89.208.0\n", program_name);
     printf("  %s --timeout 10 --retries 3 8.8.8.8\n", program_name);
     printf("  %s -Q 8.8.8.8  (no redirect)\n", program_name);
+    printf("  %s -B --host apnic < ip_list.txt  (batch from stdin)\n", program_name);
     printf("  %s -P 8.8.8.8  (no header line)\n", program_name);
     printf("  %s --debug --buffer-size 1048576 8.8.8.8\n", program_name);
 }
 
 void print_version() {
-    printf("whois client 3.0 (Optimized Redirect)\n");
-    printf(
-        "High-performance whois query tool with reliable redirect handling\n");
+    printf("whois client 3.1.0 (Batch mode, headers+RIR tail, non-blocking connect, timeouts, redirects)\n");
+    printf("High-performance whois query tool with batch stdin, plain mode, authoritative RIR tail, non-blocking connect and robust redirect handling. Default retry pacing: interval=300ms, jitter=300ms.\n");
 }
 
 void print_servers() {
@@ -314,6 +323,14 @@ int validate_global_config() {
     }
     if (g_config.max_redirects < 0) {
         fprintf(stderr, "Error: Invalid max redirects in config\n");
+        return 0;
+    }
+    if (g_config.retry_interval_ms < 0) {
+        fprintf(stderr, "Error: Invalid retry interval in config\n");
+        return 0;
+    }
+    if (g_config.retry_jitter_ms < 0) {
+        fprintf(stderr, "Error: Invalid retry jitter in config\n");
         return 0;
     }
     return 1;
@@ -1418,7 +1435,8 @@ int needs_redirect(const char* response) {
     return 0;
 }
 
-char* perform_whois_query(const char* target, int port, const char* query) {
+char* perform_whois_query(const char* target, int port, const char* query, char** authoritative_server_out) {
+    if (authoritative_server_out) *authoritative_server_out = NULL;
     int redirect_count = 0;
     char* current_target = strdup(target);
     int current_port = port;
@@ -1427,6 +1445,7 @@ char* perform_whois_query(const char* target, int port, const char* query) {
     const char* redirect_server = NULL;
     // Track visited redirect targets to avoid loops
     char* visited[16] = {0};
+    char* final_authoritative = NULL;
 
     if (!current_target || !current_query) {
         log_message("ERROR", "Memory allocation failed for query parameters");
@@ -1462,7 +1481,15 @@ char* perform_whois_query(const char* target, int port, const char* query) {
             }
 
             retry_count++;
-            usleep(300000);  // 300ms delay before retry
+            // Sleep before retry with optional jitter
+            int delay_ms = g_config.retry_interval_ms;
+            if (g_config.retry_jitter_ms > 0) {
+                int j = rand() % (g_config.retry_jitter_ms + 1);
+                delay_ms += j;
+            }
+            if (delay_ms > 0) {
+                usleep((useconds_t)delay_ms * 1000);
+            }
         }
 
         if (result == NULL) {
@@ -1477,6 +1504,10 @@ char* perform_whois_query(const char* target, int port, const char* query) {
             }
 
             // If not the first, return collected results
+            if (!final_authoritative && current_target) {
+                // best-effort authoritative guess
+                final_authoritative = strdup(current_target);
+            }
             break;
         }
 
@@ -1511,6 +1542,8 @@ char* perform_whois_query(const char* target, int port, const char* query) {
                             free(result);
                         }
                     }
+                    if (!final_authoritative && current_target)
+                        final_authoritative = strdup(current_target);
                     break;
                 }
 
@@ -1556,6 +1589,8 @@ char* perform_whois_query(const char* target, int port, const char* query) {
                 }
                 if (loop) {
                     log_message("WARN", "Detected redirect loop, stop following redirects");
+                    if (!final_authoritative && current_target)
+                        final_authoritative = strdup(current_target);
                     break;
                 }
 
@@ -1599,6 +1634,8 @@ char* perform_whois_query(const char* target, int port, const char* query) {
                     free(result);
                 }
             }
+            if (!final_authoritative && current_target)
+                final_authoritative = strdup(current_target);
             break;
         }
     }
@@ -1626,9 +1663,12 @@ char* perform_whois_query(const char* target, int port, const char* query) {
     if (redirect_server) free((void*)redirect_server);
     // free visited records
     for (int i = 0; i < 16; i++) { if (visited[i]) free(visited[i]); }
+    // Preserve authoritative if not set
+    if (!final_authoritative && current_target)
+        final_authoritative = strdup(current_target);
     free(current_target);
     free(current_query);
-
+    if (authoritative_server_out) *authoritative_server_out = final_authoritative; else if (final_authoritative) free(final_authoritative);
     return combined_result;
 }
 
@@ -1665,6 +1705,8 @@ int main(int argc, char* argv[]) {
     const char* server_host = NULL;
     int port = g_config.whois_port;
     int show_help = 0, show_version = 0, show_servers = 0;
+    // Seed RNG for retry jitter if used
+    srand((unsigned)time(NULL));
 
     // Extended command line options
     static struct option long_options[] = {
@@ -1673,11 +1715,14 @@ int main(int argc, char* argv[]) {
         {"buffer-size", required_argument, 0, 'b'},
         {"retries", required_argument, 0, 'r'},
         {"timeout", required_argument, 0, 't'},
+        {"retry-interval-ms", required_argument, 0, 'i'},
+        {"retry-jitter-ms", required_argument, 0, 'J'},
         {"dns-cache", required_argument, 0, 'd'},
         {"conn-cache", required_argument, 0, 'c'},
         {"cache-timeout", required_argument, 0, 'T'},
-        {"max-redirects", required_argument, 0, 'R'},
-        {"no-redirect", no_argument, 0, 'Q'},
+    {"max-redirects", required_argument, 0, 'R'},
+    {"no-redirect", no_argument, 0, 'Q'},
+    {"batch", no_argument, 0, 'B'},
         {"plain", no_argument, 0, 'P'},
         {"debug", no_argument, 0, 'D'},
         {"list", no_argument, 0, 'l'},
@@ -1687,11 +1732,16 @@ int main(int argc, char* argv[]) {
 
     int opt;
     int option_index = 0;
+    int explicit_batch = 0;
 
     // Parse command line arguments
-    while ((opt = getopt_long(argc, argv, "h:p:b:r:t:d:c:T:R:QPDlvH", long_options,
+    while ((opt = getopt_long(argc, argv, "h:p:b:r:t:i:J:d:c:T:R:QBPDlvH", long_options,
                               &option_index)) != -1) {
         switch (opt) {
+            case 'B':
+                // Explicitly enable batch mode from stdin
+                explicit_batch = 1;
+                break;
             case 'h':
                 server_host = optarg;
                 break;
@@ -1741,6 +1791,20 @@ int main(int argc, char* argv[]) {
                 g_config.timeout_sec = atoi(optarg);
                 if (g_config.timeout_sec <= 0) {
                     fprintf(stderr, "Error: Invalid timeout value\n");
+                    return 1;
+                }
+                break;
+            case 'i':
+                g_config.retry_interval_ms = atoi(optarg);
+                if (g_config.retry_interval_ms < 0) {
+                    fprintf(stderr, "Error: Invalid retry interval\n");
+                    return 1;
+                }
+                break;
+            case 'J':
+                g_config.retry_jitter_ms = atoi(optarg);
+                if (g_config.retry_jitter_ms < 0) {
+                    fprintf(stderr, "Error: Invalid retry jitter\n");
                     return 1;
                 }
                 break;
@@ -1825,6 +1889,8 @@ int main(int argc, char* argv[]) {
                g_config.connection_cache_size);
         printf("        Timeout: %d seconds\n", g_config.timeout_sec);
         printf("        Max retries: %d\n", g_config.max_retries);
+     printf("        Retry interval: %d ms\n", g_config.retry_interval_ms);
+     printf("        Retry jitter: %d ms\n", g_config.retry_jitter_ms);
     }
 
     // 2. Handle display options (help, version, server list)
@@ -1844,16 +1910,25 @@ int main(int argc, char* argv[]) {
     // 3. Validate arguments / detect stdin batch mode
     int batch_mode = 0;
     const char* single_query = NULL;
-    if (optind >= argc) {
-        if (!isatty(STDIN_FILENO)) {
-            batch_mode = 1;  // No positional query, but data is coming from stdin
-        } else {
-            fprintf(stderr, "Error: Missing query argument\n");
+    if (explicit_batch) {
+        batch_mode = 1;
+        if (optind < argc) {
+            fprintf(stderr, "Error: --batch/-B does not accept a positional query. Provide input via stdin.\n");
             print_usage(argv[0]);
             return 1;
         }
     } else {
-        single_query = argv[optind];
+        if (optind >= argc) {
+            if (!isatty(STDIN_FILENO)) {
+                batch_mode = 1;  // No positional query, but data is coming from stdin
+            } else {
+                fprintf(stderr, "Error: Missing query argument\n");
+                print_usage(argv[0]);
+                return 1;
+            }
+        } else {
+            single_query = argv[optind];
+        }
     }
 
     // 4. Initialize caches now (using final configuration values)
@@ -1875,6 +1950,9 @@ int main(int argc, char* argv[]) {
                 printf("=== Query: %s ===\n", query);
             }
             printf("%s is a private IP address\n", query);
+            if (!g_config.plain_mode) {
+                printf("=== Authoritative RIR: unknown ===\n");
+            }
             return 0;
         }
 
@@ -1902,7 +1980,8 @@ int main(int argc, char* argv[]) {
         if (g_config.debug)
             printf("[DEBUG] Final target: %s, Query: %s\n", target, query);
 
-        char* result = perform_whois_query(target, port, query);
+        char* authoritative = NULL;
+        char* result = perform_whois_query(target, port, query, &authoritative);
         free(target);
 
         if (result) {
@@ -1910,7 +1989,14 @@ int main(int argc, char* argv[]) {
                 printf("=== Query: %s ===\n", query);
             }
             printf("%s", result);
+            if (!g_config.plain_mode) {
+                if (authoritative && strlen(authoritative) > 0)
+                    printf("=== Authoritative RIR: %s ===\n", authoritative);
+                else
+                    printf("=== Authoritative RIR: unknown ===\n");
+            }
             free(result);
+            if (authoritative) free(authoritative);
             return 0;
         } else {
             fprintf(stderr, "Error: Query failed for %s\n", query);
@@ -1943,6 +2029,9 @@ int main(int argc, char* argv[]) {
                     printf("=== Query: %s ===\n", query);
                 }
                 printf("%s is a private IP address\n", query);
+                if (!g_config.plain_mode) {
+                    printf("=== Authoritative RIR: unknown ===\n");
+                }
                 continue;
             }
 
@@ -1965,14 +2054,22 @@ int main(int argc, char* argv[]) {
             if (g_config.debug)
                 printf("[DEBUG] Final target: %s, Query: %s\n", target, query);
 
-            char* result = perform_whois_query(target, port, query);
+            char* authoritative = NULL;
+            char* result = perform_whois_query(target, port, query, &authoritative);
             free(target);
             if (result) {
                 if (!g_config.plain_mode) {
                     printf("=== Query: %s ===\n", query);
                 }
                 printf("%s", result);
+                if (!g_config.plain_mode) {
+                    if (authoritative && strlen(authoritative) > 0)
+                        printf("=== Authoritative RIR: %s ===\n", authoritative);
+                    else
+                        printf("=== Authoritative RIR: unknown ===\n");
+                }
                 free(result);
+                if (authoritative) free(authoritative);
             } else {
                 fprintf(stderr, "Error: Query failed for %s\n", query);
             }
