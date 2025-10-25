@@ -211,14 +211,22 @@ whois-x86_64 -P 8.8.8.8
 ```markdown
   [lzispro]
     [func]
-      lzispdata.sh  -- ISP 数据进程脚本
-    [apnic]         -- APNIC 的 IP 信息数据
-    [isp]           -- IPv4 原始地址数据
-    [cidr]          -- IPv4 CIDR 地址数据
-    [ipv6]          -- IPv6 原始地址数据
-    [cidr_ipv6]     -- IPv6 CIDR 地址数据
-    [tmp]           -- 运行中的临时数据
-    lzispro.sh      -- 主进程脚本
+      lzispdata.sh        -- ISP 数据进程脚本
+    [apnic]               -- APNIC 的 IP 信息数据
+    [isp]                 -- IPv4 原始地址数据
+    [cidr]                -- IPv4 CIDR 地址数据
+    [ipv6]                -- IPv6 原始地址数据
+    [cidr_ipv6]           -- IPv6 CIDR 地址数据
+    [tmp]                 -- 运行中的临时数据
+    [whois]
+      whois-aarch64       -- 64 位 aarch64 | armv8 平台架构 whois 客户端
+      whois-armv7         -- 32 位 armv6 | armv7 平台架构 whois 客户端
+      whois-loongarch64   -- 龙芯 64 位平台架构 whois 客户端
+      whois-mipsel        -- 32 位小端字节序 mips 平台架构 whois 客户端
+      whois-mips64el      -- 64 位小端字节序 mips 平台架构 whois 客户端
+      whois-x86           -- 32 位 x86 | i386 | i486 | i586 | i686 平台架构 whois 客户端
+      whois-x86_64        -- 64 位 x86_64 | amd64 平台架构 whois 客户端
+    lzispro.sh            -- 主进程脚本
 ```
 
 ## 五、参数配置
