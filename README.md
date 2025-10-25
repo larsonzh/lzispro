@@ -23,7 +23,7 @@ Multi process parallel acquisition tool for IP address data of ISP network opera
 
 # whois 客户端与远程交叉编译
 
-项目内置自定义的多个基于 Linux 系统环境，具有智能重定向功能，无外部依赖的轻量级高性能 whois 客户端（C 语言实现），涵盖 x86 | x86_64 | armv6/v7 | aarch64 | mipsel | mips64el | loongarch64 平台架构，可在嵌入式设备、台式机、服务器和云网络上以极低的资源占用率，友好的接口方式，高速而可靠的运行，并提供 Windows 下 Git Bash 一键远程静态交叉编译与可选 QEMU 冒烟测试的脚本。
+项目内置自定义的多个基于 Linux 系统环境，具有智能重定向功能，支持海量数据查询，无外部依赖的轻量级高性能 whois 客户端（C 语言实现），涵盖 x86 | x86_64 | armv6/v7 | aarch64 | mipsel | mips64el | loongarch64 平台架构，可在嵌入式设备、台式机、服务器和云网络上以极低的资源占用率，友好的接口方式，高速而可靠的运行，并提供 Windows 下 Git Bash 一键远程静态交叉编译与可选 QEMU 冒烟测试的脚本。
 
 - 说明文档（中文）：`release/lzispro/whois/remote/README_CN.md`
 - 本地启动脚本（Git Bash）：`release/lzispro/whois/remote/remote_build_and_test.sh`
