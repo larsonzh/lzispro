@@ -129,13 +129,12 @@ whois-x86_64 -P 8.8.8.8
 
 ## 一、安装支撑软件
 
-脚本使用前最好将所在系统升级到最新版本，同时要在系统中联网安装脚本执行时必须依赖的软件模块：whois，wget
+脚本已内置自定义的 whois 客户端软件模块，使用前最好将所在系统升级到最新版本，同时安装脚本执行时必须依赖的软件模块：wget
 
 - Ubuntu | Deepin
 
 ```markdown
   sudo apt update
-  sudo apt install whois
   sudo apt install gawk
   sudo apt install screen # 可选项
 ```
@@ -154,20 +153,19 @@ whois-x86_64 -P 8.8.8.8
 - ASUSWRT-Merlin
 
 ```markdown
+  以下为可选项
   先安装 Entware 软件存储库：
-  插入格式化为 ext4 格式的 USB 盘，键入
-  系统自带的 amtm 命令，在终端菜单窗口中
-  选择安装 Entware 到 USB 盘。
-  opkg update
-  opkg install whois
-  opkg install screen # 可选项
+    插入格式化为 ext4 格式的 USB 盘，键入
+    系统自带的 amtm 命令，在终端菜单窗口中
+    选择安装 Entware 到 USB 盘。
+  opkg update 
+  opkg install screen
 ```
 
 - OpenWrt
 
 ```markdown
   opkg update
-  opkg install whois
   opkg install wget-ssl
   opkg install screen # 可选项
 ```
