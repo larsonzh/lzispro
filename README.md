@@ -5,7 +5,7 @@ Multi process parallel acquisition tool for IP address data of ISP network opera
 
 *呵呵，妥妥的一个主机多进程网络性能，计算性能，读写性能测试工具！能以极致指标跑好这个脚本，才敢说有台好设备可以凑合用了。*
 
-**v1.1.7**
+**v1.1.8**
 
 工具采用 Shell 脚本编写，参考并借鉴 clangcn（ https://github.com/clangcn/everyday-update-cn-isp-ip.git ）项目代码和思路，通过多进程并行处理技术，对信息检索和数据写入过程进行优化，极大提高 ISP 运营商分项地址数据生成效率，减少运行时间。
 
@@ -20,6 +20,63 @@ Multi process parallel acquisition tool for IP address data of ISP network opera
 本产品同时也是本人 lzispcn 项目（ https://github.com/larsonzh/lzispcn.git ）从单进程进化到多进程的升级版本。
 
 项目代码和算法全部开源公开，欢迎有闲人士研究、探索和教化，共同进步。
+
+# whois 客户端与远程交叉编译
+
+项目内置了一个基于 Linux 系统环境，无外部依赖的多个轻量级 whois 客户端（C 语言实现），涵盖 x86|x86_64|armv6|armv7|aarch64|mipsel|mips64el|loongarch64 平台架构，并提供 Windows 下 Git Bash 一键远程静态交叉编译与可选 QEMU 冒烟测试的脚本。
+
+- 说明文档（中文）：`release/lzispro/whois/remote/README_CN.md`
+- 本地启动脚本（Git Bash）：`release/lzispro/whois/remote/remote_build_and_test.sh`
+- 使用说明（中文）：`release/lzispro/whois/USAGE_CN.md`
+- 使用说明（英文）：`release/lzispro/whois/USAGE_EN.md`
+
+注意：PowerShell 启动器已停用，请使用 Git Bash 版本。
+
+## whois 客户端命令行用法与输出契约
+
+- 标题行（默认开启，-P/--plain 可关闭）
+  - 开头打印：`=== Query: <查询项> ===`，查询项位于标题行第 3 字段（$3）
+  - 便于 BusyBox awk/grep 管道固定提取 `$3`
+
+- 末尾权威 RIR 尾行（默认开启，-P/--plain 可关闭）
+  - 每个查询输出的最后一行：`=== Authoritative RIR: <server> ===`
+  - 在“折叠为一行”后，该字段位于最后一个字段（`$(NF)`），常用于按 RIR 过滤
+
+- 跳转与超时
+  - 默认自动跟随重定向（最多 `-R/--max-redirects` 次，默认 5）
+  - `-Q/--no-redirect` 禁止跟随重定向，仅查询起始服务器（或 `--host` 指定服务器）
+  - `-t/--timeout` 设置网络超时秒数（默认 5s）
+  - `-r/--retries` 设置单次请求内的轻量重试次数（默认 2 次）
+
+- 批量模式
+  - `-B/--batch` 显式从标准输入读取查询项，每行一个；启用后禁止再给位置参数
+  - 若未给位置参数且 stdin 非 TTY，会自动进入隐式批量模式
+
+- 常用示例
+
+```bash
+# 单条查询（自动重定向）
+whois-x86_64 8.8.8.8
+
+# 指定起始 RIR 并禁止重定向
+whois-x86_64 --host apnic -Q 103.89.208.0
+
+# 批量（显式）
+cat ip_list.txt | whois-x86_64 -B --host apnic
+
+# 纯净输出（不含标题/尾行），适合只要 whois 正文时
+whois-x86_64 -P 8.8.8.8
+```
+
+- BusyBox awk 折叠与提取示例（与脚本 `func/lzispdata.sh` 风格一致）：
+
+```sh
+... | grep -Ei '^(=== Query:|netname|mnt-|e-mail|=== Authoritative RIR:)' \
+  | awk -v count=0 '/^=== Query/ {if (count==0) printf "%s", $3; else printf "\n%s", $3; count++; next} \
+      /^=== Authoritative RIR:/ {printf " %s", toupper($4)} \
+      (!/^=== Query:/ && !/^=== Authoritative RIR:/) {printf " %s", toupper($2)} END {printf "\n"}'
+# 注：折叠后 `$(NF)` 即为权威 RIR 域名（大写），可据此与目标 RIR 进行过滤
+```
 
 # 功能
 - 从 APNIC 下载最新 IP 信息数据。
@@ -119,11 +176,11 @@ Multi process parallel acquisition tool for IP address data of ISP network opera
 
 ## 二、安装项目脚本
 
-1. 下载本工具的软件压缩包 lzsipcn-[version ID].tgz（例如：lzispro-v1.1.7.tgz）。
+1. 下载本工具的软件压缩包 lzsipcn-[version ID].tgz（例如：lzispro-v1.1.8.tgz）。
 
 2. 将压缩包复制到设备的任意有读写权限的目录。
 
-3. 在 Shell 终端中使用解压缩命令在当前目录中解压缩，生成 lzispro-[version ID] 目录（例如：lzispro-v1.1.7），其中包含一个 lzispro 目录，是脚本所在目录。
+3. 在 Shell 终端中使用解压缩命令在当前目录中解压缩，生成 lzispro-[version ID] 目录（例如：lzispro-v1.1.8），其中包含一个 lzispro 目录，是脚本所在目录。
 
 ```markdown
   tar -xzvf lzispro-[version ID].tgz
