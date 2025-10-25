@@ -1,5 +1,5 @@
 #!/bin/sh
-# lzispdata.sh v1.1.7
+# lzispdata.sh v1.1.8
 # By LZ 妙妙呜 (larsonzhang@gmail.com)
 
 # ISP Data Process Script
@@ -70,7 +70,7 @@ unset_isp_data_buf() {
 }
 
 get_isp_details() {
-    whois -h "${WHOIS_HOST}" "${1%/*}" | grep -Ei '^(netname|mnt-|e-mail)'
+    "${WHOIS_MODULE}" -h "${WHOIS_HOST}" "${1%/*}" 2> /dev/null | grep -Ei '^(netname|mnt-|e-mail)'
 }
 
 write_isp_data_buf() {
@@ -115,7 +115,7 @@ failure_handling() {
         if [ "${index}" = "1" ]; then
             echo "failure" > "${fname%.*}.dat_${SRC_INDEX}"
         else
-            [ -f "${fname%.*}_${SRC_INDEX}.dat" ] && rm -f "${fname%.*}.dat_${SRC_INDEX}"
+            [ -f "${fname%.*}.dat_${SRC_INDEX}" ] && rm -f "${fname%.*}.dat_${SRC_INDEX}"
         fi
         index="$(( index + 1 ))"
     done
@@ -172,10 +172,60 @@ get_isp_data() {
     return "0"
 }
 
+get_batch_isp_data() {
+    local retval="0" regexp="^${REGEX_IPV4_NET}$" prefix="ISP_DATA_" index="1" \
+        fname_1="" fname_2="" fname_3="" fname_4="" fname_5="" fname_6="" fname_7="" \
+        WHOIS_EXTRA_ARGS=""
+    if [ "${IPV_TYPE}" != "ipv4" ]; then
+        regexp="^${REGEX_IPV6_NET}$"
+        prefix="ISP_IPV6_DATA_"
+    fi
+    until [ "${index}" -gt "7" ]
+    do
+        eval fname_${index}="${PATH_DST}/\${${prefix}${index}}"
+        index="$(( index + 1 ))"
+    done
+
+    # Internal pacing defaults (can be overridden by env) — keep simple for users
+    local _WHOIS_TIMEOUT="${WHOIS_TIMEOUT:-5}"
+    local _WHOIS_RETRY_INTERVAL_MS="${WHOIS_RETRY_INTERVAL_MS:-300}"
+    local _WHOIS_RETRY_JITTER_MS="${WHOIS_RETRY_JITTER_MS:-300}"
+    WHOIS_EXTRA_ARGS="--timeout ${_WHOIS_TIMEOUT} --retry-interval-ms ${_WHOIS_RETRY_INTERVAL_MS} --retry-jitter-ms ${_WHOIS_RETRY_JITTER_MS}"
+    grep -Eo "${regexp}" "${PATH_SRC}/${SRC_FILENAME}" \
+        | "${WHOIS_MODULE}" --batch --host "${WHOIS_HOST}" --retries "${RETRY_NUM}" ${WHOIS_EXTRA_ARGS} 2> /dev/null \
+        | grep -Ei '^(=== Query:|netname|mnt-|e-mail|=== Authoritative RIR:)' \
+        | awk -v count=0 '/^=== Query/ {if (count ==  0) printf "%s", $3; else printf "\n%s", $3; count++; next} \
+            /^=== Authoritative RIR:/ {printf " %s", toupper($4)} \
+            !/^=== Query:/ && !/^=== Authoritative RIR:/ {printf " %s", toupper($2)} END {printf "\n"}' \
+        | awk -v sfx=".dat_${SRC_INDEX}" 'BEGIN {
+            fname_1 = "'"${fname_1%.*}"'" sfx;
+            fname_2 = "'"${fname_2%.*}"'" sfx;
+            fname_3 = "'"${fname_3%.*}"'" sfx;
+            fname_4 = "'"${fname_4%.*}"'" sfx;
+            fname_5 = "'"${fname_5%.*}"'" sfx;
+            fname_6 = "'"${fname_6%.*}"'" sfx;
+            fname_7 = "'"${fname_7%.*}"'" sfx;
+        } \
+        toupper($(NF)) == "UNKNOWN" { next } \
+        /CNC|UNICOM/ {print $1 >> fname_2; next} \
+        /CHINANET|TELECOM|BJTEL/ {print $1 >> fname_1; next} \
+        (!/ZXLYCMCC/ && /CMCC/) || (!/CMIDC@CHINA-MOTION[.]COM/ && /CMNET/) \
+            || /CRTC|CHINAMOBILE|CTTNET|CTTSDNET|TIETONG|CTTSH/ {print $1 >> fname_3; next} \
+        /CHINABTN|HEBBTN|TJBTN|NXBCTV/ {print $1 >> fname_4; next} \
+        /CERNET/ {print $1 >> fname_5; next} \
+        /GWNET|GWBN|GXBL|WSNET|DXTNET|BITNET|ZBTNET|DRPENG|BTTE/ {print $1 >> fname_6; next} \
+        {print $1 >> fname_7}' || retval="1"
+    return "${retval}"
+}
+
 # -------------- Script Execution ---------------
 
 init_param "${#}" "${0}" || exit "1"
-get_isp_data || exit "1"
+if [ "${WHOIS_MODULE}" = "whois" ]; then
+    get_isp_data || exit "1"
+else
+    get_batch_isp_data || exit "1"
+fi
 
 exit "0"
 

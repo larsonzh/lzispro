@@ -1,5 +1,5 @@
 #!/bin/sh
-# lzispro.sh v1.1.7
+# lzispro.sh v1.1.8
 # By LZ 妙妙呜 (larsonzhang@gmail.com)
 
 # Multi process parallel acquisition tool for IP address data of ISP network operators in China
@@ -37,6 +37,7 @@
 PATH_CURRENT="${0%/*}"
 ! echo "${PATH_CURRENT}" | grep -q '^[/]' && PATH_CURRENT="$( pwd )${PATH_CURRENT#*.}"
 PATH_FUNC="${PATH_CURRENT}/func"
+PATH_WHOIS="${PATH_CURRENT}/whois"
 PATH_APNIC="${PATH_CURRENT}/apnic"
 PATH_ISP="${PATH_CURRENT}/isp"
 PATH_CIDR="${PATH_CURRENT}/cidr"
@@ -128,6 +129,12 @@ WHOIS_HOST="whois.apnic.net"
 # Default: 16, Min: 1. Keep per-core CPU usage under 80%.
 PARA_QUERY_PROC_NUM=16
 
+# Number of Whois Client Threads for each Query Process
+# Not applicable to the official whois client
+# Numbers 1 to 64 (Min: 1, Max: 64)
+# Default: 1
+WHOIS_CLIENT_THREAD_NUM=1
+
 # Maximum Number Of Retries After IP Address Query Failure
 # 0--Unlimited, 5--Default
 RETRY_NUM=5
@@ -147,6 +154,8 @@ SYSLOG=""
 #SYSLOG="/tmp/syslog.log"
 #SYSLOG="${PATH_CURRENT}/syslog.log"
 
+# --------------- Flobal Variable ---------------
+
 # Forced Stop Command Word
 FORCED_STOP_CMD="stop"
 
@@ -165,7 +174,9 @@ REGEX_IPV6_NET="${REGEX_IPV6_NET}([/]([1-9]|([1-9]|1[0-1])[0-9]|12[0-8]))?"
 REGEX_IPV6="${REGEX_IPV6_NET%([[]/[]](*}"
 REGEX_SED_IPV6_NET="$( echo "${REGEX_IPV6_NET}" | sed 's/[(){}|+?]/\\&/g' )"
 
-LZ_VERSION="v1.1.7"
+WHOIS_MODULE="whois"
+
+LZ_VERSION="v1.1.8"
 
 # ------------------ Function -------------------
 
@@ -180,15 +191,18 @@ lz_echo() {
 }
 
 proc_sync() {
-    if ! ps a 2> /dev/null | awk '$0 ~ "'"${PROJECT_SCRIPT}"'" && !/awk/ {if ($1 != "'"$$"'") exit(1)}'; then
+    local self=$$ d pid comm
+    for d in /proc/[1-9]*; do
+        [ -e "${d}/comm" ] || continue
+        read -r comm < "${d}/comm" 2>/dev/null || continue
+        [ "${comm}" = "sh" ] || [ "${comm}" = "ash" ] || continue
+        pid="${d##*/}"
+        [ "${pid}" -eq "${self}" ] && continue
+        grep -Fiq -- "${PROJECT_SCRIPT}" "${d}/cmdline" 2>/dev/null || continue
         lz_echo "Another instance is already running."
-        return "1"
-    fi
-    if ! ps | awk '$0 ~ "'"${PROJECT_SCRIPT}"'" && !/awk/ {if ($1 != "'"$$"'") exit(1)}'; then
-        lz_echo "Another instance is already running."
-        return "1"
-    fi
-    return "0"
+        return 1
+    done
+    return 0
 }
 
 remove_div_data() {
@@ -219,20 +233,51 @@ remove_tmp_data() {
     [ -f "${PATH_TMP}/${APNIC_IP_INFO%.*}.dat" ] && rm -f "${PATH_TMP}/${APNIC_IP_INFO%.*}.dat"
 }
 
+kill_processes() {
+    local pname="$1" pattern="${2:-}" d pid comm cnt=0
+    for d in /proc/[1-9]*; do
+        [ -e "${d}/comm" ] || continue
+        read -r comm < "${d}/comm" 2>/dev/null || continue
+        [ "${comm}" = "${pname}" ] || continue
+        if [ -n "${pattern}" ]; then
+            grep -Fiq -- "${pattern}" "${d}/cmdline" 2>/dev/null || continue
+        fi
+        pid=${d##*/}
+        [ "${pid}" -eq $$ ] && continue
+        # printf 'kill -TERM %d # %s<%s>\n' "${pid}" "${pname}" "${pattern:-*}"
+        kill -TERM "${pid}" 2>/dev/null
+        # kill -KILL "${pid}"
+        cnt="$((cnt + 1))"
+    done
+    return "${cnt}"
+}
+
+kill_others_with_same_name() {
+    local pname="${1}" d pid comm
+    pname="${pname:-"${0##*/}"}"
+    for d in /proc/[1-9]*; do
+        [ -e "${d}/comm" ] || continue
+        read -r comm < "${d}/comm" 2>/dev/null || continue
+        [ "${comm}" = "${pname}" ] || continue
+        pid="${d##*/}"
+        [ "${pid}" -eq $$ ] && continue
+        kill -TERM "${pid}" 2>/dev/null
+    done
+}
+
 kill_child_processes() {
-    ps a 2> /dev/null | awk '$0 ~ "'"${ISP_DATA_SCRIPT}"'" && !/awk/ {system("kill -9 "$1" > /dev/null 2>&1")}'
-    ps | awk '$0 ~ "'"${ISP_DATA_SCRIPT}"'" && !/awk/ {system("kill -9 "$1" > /dev/null 2>&1")}'
-    eval "$( ps a 2> /dev/null | grep 'awk.*function[[:space:]]*lz_lshift' | sed 's/^[[:space:]]*\([0-9]\+\).*$/kill -9 \1 > \/dev\/null 2>\&1/' )"
-    eval "$( ps | grep 'awk.*function[[:space:]]*lz_lshift' | sed 's/^[[:space:]]*\([0-9]\+\).*$/kill -9 \1 > \/dev\/null 2>\&1/' )"
+    kill_processes "${ISP_DATA_SCRIPT}"
+    kill_processes "awk" "^(=== Query"
+    kill_processes "awk" "/CNC|UNICOM/"
+    kill_processes "awk" "${PROJECT_SCRIPT%.*}"
+    kill_processes "awk" "lz_lshift"
     remove_div_data "ipv4"
     remove_div_data "ipv6"
 }
 
 kill_father_processes() {
-    ps a 2> /dev/null | awk '$0 ~ "'"${PROJECT_SCRIPT}"'" && $1 != "'"$$"'" && !/awk/ {system("kill -9 "$1" > /dev/null 2>&1")}'
-    ps | awk '$0 ~ "'"${PROJECT_SCRIPT}"'" && $1 != "'"$$"'" && !/awk/ {system("kill -9 "$1" > /dev/null 2>&1")}'
-    ps a 2> /dev/null | awk '$0 ~ "'"${APNIC_IP_INFO%.*}.dat"'" && !/awk/ {system("kill -9 "$1" > /dev/null 2>&1")}'
-    ps | awk '$0 ~ "'"${APNIC_IP_INFO%.*}.dat"'" && !/awk/ {system("kill -9 "$1" > /dev/null 2>&1")}'
+    kill_others_with_same_name "${ISP_DATA_SCRIPT}"
+    kill_processes "wget" "${APNIC_IP_INFO%.*}.dat"
     remove_tmp_data
 }
 
@@ -252,6 +297,76 @@ check_module() {
             lz_echo "No wget-ssl module. Game Over !!!"
             return "1"
         }
+    if [ "${1}" = "whois" ]; then
+        case "$( uname -m | awk '{print tolower($1)}' )" in
+            aarch64|armv8*)
+                if [ -f "${PATH_WHOIS}/whois-aarch64" ]; then
+                    WHOIS_MODULE="${PATH_WHOIS}/whois-aarch64"
+                    chmod +x "${WHOIS_MODULE}"
+                    return "0"
+                fi
+            ;;
+            armv7*|armv6*)
+                if [ -f "${PATH_WHOIS}/whois-armv7" ]; then
+                    WHOIS_MODULE="${PATH_WHOIS}/whois-armv7"
+                    chmod +x "${WHOIS_MODULE}"
+                    return "0"
+                fi
+            ;;
+            x86_64|amd64)
+                if [ -f "${PATH_WHOIS}/whois-x86_64" ]; then
+                    WHOIS_MODULE="${PATH_WHOIS}/whois-x86_64"
+                    chmod +x "${WHOIS_MODULE}"
+                    return "0"
+                fi
+            ;;
+            x86|i386|i486|i586|i686)
+                if [ -f "${PATH_WHOIS}/whois-x86" ]; then
+                    WHOIS_MODULE="${PATH_WHOIS}/whois-x86"
+                    chmod +x "${WHOIS_MODULE}"
+                    return "0"
+                fi
+            ;;
+            mips)   # 32-bit MIPS Big Endian (No support required)
+                if [ -f "${PATH_WHOIS}/whois-mips" ]; then
+                    WHOIS_MODULE="${PATH_WHOIS}/whois-mips"
+                    chmod +x "${WHOIS_MODULE}"
+                    return "0"
+                fi
+            ;;
+            mipsel) # 32-bit MIPS Little Endian (Mainstream support)
+                if [ -f "${PATH_WHOIS}/whois-mipsel" ]; then
+                    WHOIS_MODULE="${PATH_WHOIS}/whois-mipsel"
+                    chmod +x "${WHOIS_MODULE}"
+                    return "0"
+                fi
+            ;;
+            mips64) # 64-bit MIPS Big Endian (No support required)
+                if [ -f "${PATH_WHOIS}/whois-mips64" ]; then
+                    WHOIS_MODULE="${PATH_WHOIS}/whois-mips64"
+                    chmod +x "${WHOIS_MODULE}"
+                    return "0"
+                fi
+            ;;
+            mips64el) # 64-bit MIPS Little Endian (Mainstream support)
+                if [ -f "${PATH_WHOIS}/whois-mips64el" ]; then
+                    WHOIS_MODULE="${PATH_WHOIS}/whois-mips64el"
+                    chmod +x "${WHOIS_MODULE}"
+                    return "0"
+                fi
+            ;;
+            loongarch64) # 64-bit LoongArch (Mainstream support)
+                if [ -f "${PATH_WHOIS}/whois-loongarch64" ]; then
+                    WHOIS_MODULE="${PATH_WHOIS}/whois-loongarch64"
+                    chmod +x "${WHOIS_MODULE}"
+                    return "0"
+                fi
+            ;;
+            *)
+                WHOIS_MODULE="whois"
+            ;;
+        esac
+    fi
     which "${1}" > /dev/null 2>&1 && return "0"
     lz_echo "No ${1} module. Game Over !!!"
     return "1"
@@ -344,6 +459,13 @@ init_param() {
             lz_echo "Game Over !!!"
             break
         }
+        detect_str_space "PATH_WHOIS" || break
+        [ ! -d "${PATH_WHOIS}" ] && {
+            lz_echo "PATH_WHOIS directory does not exist."
+            lz_echo "Game Over !!!"
+            break
+        }
+        compare_dir_name "PATH_FUNC" "PATH_WHOIS" || break
         detect_str_space "ISP_DATA_SCRIPT" || break
         [ ! -f "${PATH_FUNC}/${ISP_DATA_SCRIPT}" ] && {
             lz_echo "${PATH_FUNC}/${ISP_DATA_SCRIPT} does not exist."
@@ -352,16 +474,22 @@ init_param() {
         }
         detect_str_space "PATH_APNIC" || break
         compare_dir_name "PATH_APNIC" "PATH_FUNC" || break
+        compare_dir_name "PATH_APNIC" "PATH_WHOIS" || break
         detect_str_space "PATH_ISP" || break
         compare_dir_name "PATH_ISP" "PATH_FUNC" || break
+        compare_dir_name "PATH_ISP" "PATH_WHOIS" || break
         detect_str_space "PATH_CIDR" || break
         compare_dir_name "PATH_CIDR" "PATH_FUNC" || break
+        compare_dir_name "PATH_CIDR" "PATH_WHOIS" || break
         detect_str_space "PATH_IPV6" || break
         compare_dir_name "PATH_IPV6" "PATH_FUNC" || break
+        compare_dir_name "PATH_IPV6" "PATH_WHOIS" || break
         detect_str_space "PATH_IPV6_CIDR" || break
         compare_dir_name "PATH_IPV6_CIDR" "PATH_FUNC" || break
+        compare_dir_name "PATH_IPV6_CIDR" "PATH_WHOIS" || break
         detect_str_space "PATH_TMP" || break
         compare_dir_name "PATH_TMP" "PATH_FUNC" || break
+        compare_dir_name "PATH_TMP" "PATH_WHOIS" || break
         compare_dir_name "PATH_TMP" "PATH_APNIC" || break
         compare_dir_name "PATH_TMP" "PATH_ISP" || break
         compare_dir_name "PATH_TMP" "PATH_CIDR" || break
@@ -392,9 +520,19 @@ init_param() {
             lz_echo "Game Over !!!"
             break
         }
-        PARA_QUERY_PROC_NUM="$( printf "%u\n" "${PARA_QUERY_PROC_NUM}" )"
+        PARA_QUERY_PROC_NUM="$( printf "%u\n" "${PARA_QUERY_PROC_NUM:-16}" )"
         [ "${PARA_QUERY_PROC_NUM}" = "0" ] && {
             lz_echo "PARA_QUERY_PROC_NUM cann't be less than 1."
+            lz_echo "Game Over !!!"
+        }
+        ! echo "${WHOIS_CLIENT_THREAD_NUM}" | grep -qE '^([0-9]+)$' && {
+            lz_echo "WHOIS_CLIENT_THREAD_NUM isn't an decimal unsigned integer."
+            lz_echo "Game Over !!!"
+            break
+        }
+        WHOIS_CLIENT_THREAD_NUM="$( printf "%u\n" "${WHOIS_CLIENT_THREAD_NUM:-1}" )"
+        { [ "${WHOIS_CLIENT_THREAD_NUM}" -le "0" ] || [ "${WHOIS_CLIENT_THREAD_NUM}" -gt "64" ]; } && {
+            lz_echo "WHOIS_CLIENT_THREAD_NUM cann't be less than 1 & great 64."
             lz_echo "Game Over !!!"
         }
         ! echo "${RETRY_NUM}" | grep -qE '^[0-9]+$' && {
@@ -423,6 +561,8 @@ export_env_var() {
     export PATH_TMP
     export ISP_DATA_SCRIPT
     export WHOIS_HOST
+    export WHOIS_MODULE
+    export WHOIS_CLIENT_THREAD_NUM
     export RETRY_NUM
     export REGEX_IPV4_NET
     export REGEX_IPV6_NET
@@ -632,8 +772,12 @@ get_isp_data() {
     fi
     if [ "${PARA_QUERY_PROC_NUM}" -gt "1" ]; then
         lz_echo "Use ${PARA_QUERY_PROC_NUM} processes for parallel query processing."
+        [ "${WHOIS_MODULE}" != "whois" ] \
+            && lz_echo "Whois client (${WHOIS_MODULE##*/}) threads: ${WHOIS_CLIENT_THREAD_NUM}"
     else
         lz_echo "Use ${PARA_QUERY_PROC_NUM} query processing process."
+        [ "${WHOIS_MODULE}" != "whois" ] \
+            && lz_echo "Whois client (${WHOIS_MODULE##*/}) threads: ${WHOIS_CLIENT_THREAD_NUM}"
     fi
     lz_echo "Don't interrupt & Please wait......"
     [ "${PROGRESS_BAR}" = "0" ] && echo -n ".."
@@ -1142,7 +1286,7 @@ async_cidr_task() {
     else
         cidr_hash_merge "${1}" "${2}" "${3}" &
     fi
-    ASYNC_PID="${!}"
+    ASYNC_PID="$!"
     while true
     do
         [ "${4}" = "0" ] && echo -n "..."
@@ -1390,7 +1534,7 @@ get_file_time_stamp() {
 
 show_header() {
     BEGIN_TIME="$( date +%s -d "$( date +"%F %T" )" )"
-    [ -z "${LZ_VERSION}" ] && LZ_VERSION="v1.1.7"
+    [ -z "${LZ_VERSION}" ] && LZ_VERSION="v1.1.8"
     lz_echo
     lz_echo "LZ ISPRO ${LZ_VERSION} script commands start......"
     lz_echo "By LZ (larsonzhang@gmail.com)"
@@ -1437,7 +1581,7 @@ show_header
 while true
 do
     forced_stop_cmd "${1}" && break
-    cidr_merge_cmd "${@}" && break
+    cidr_merge_cmd "$@" && break
     proc_sync || break
     check_module "whois" || break
     check_module "wget" || break
