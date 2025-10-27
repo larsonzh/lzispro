@@ -29,104 +29,31 @@ Multi process parallel acquisition tool for IP address data of ISP network opera
 
 # whois 客户端与远程交叉编译
 
-项目内置自定义的多个基于 Linux 系统环境，符合 whois 规约，具有智能重定向功能，支持海量数据查询，无外部依赖的轻量级高性能 whois 客户端（C 语言实现），涵盖 x86 | x86_64 | armv6/v7 | aarch64 | mipsel | mips64el | loongarch64 平台架构，可在嵌入式设备、台式机、服务器和云网络上以极低的资源占用率，友好的接口方式，高速而可靠的运行，并提供 Windows 下 Git Bash 一键远程静态交叉编译与可选 QEMU 冒烟测试的脚本。
+- 轻量高性能的自研 whois 客户端（C 语言），面向 BusyBox/路由器等精简环境
+- 稳定输出契约：每条查询固定“标题行 + 权威 RIR 尾行”，便于 awk/grep 管道
+- 正则过滤与选择模式：`--grep/--grep-cs`，`--grep-line/--grep-block`；行模式可选 `--keep-continuation-lines`
+- 多架构全静态二进制：aarch64/armv7/x86_64/x86/mipsel/mips64el/loongarch64
+- 提供远程交叉编译与 QEMU 冒烟测试脚本（Git Bash 一键）
 
-- whois 仓库（同工作区本地路径）：`../whois`
-- 远程交叉编译说明（中文）：`../whois/tools/remote/README_CN.md`
-- 本地启动脚本（Git Bash）：`../whois/tools/remote/remote_build_and_test.sh`
-- whois 使用说明（中文）：`../whois/docs/USAGE_CN.md`
-- whois 使用说明（英文）：`../whois/docs/USAGE_EN.md`
+常用链接
+- whois 仓库：`../whois`
+- 中文使用说明：`../whois/docs/USAGE_CN.md`
+- 远程交叉编译：`../whois/tools/remote/README_CN.md`
+- 最新发布（下载）：https://github.com/larsonzh/whois/releases
 
-提示：若在 GitHub 浏览，请访问
+提示（产物与清理）：自 whois v3.2.0 起，whois 仓库的 `out/artifacts/` 已被 `.gitignore` 忽略且不再纳入版本控制；若需清理本地历史产物，可使用 `../whois/tools/dev/prune_artifacts.ps1`（支持 `-DryRun`）。
 
-- whois 仓库首页：https://github.com/larsonzh/whois
-- 远程构建说明：https://github.com/larsonzh/whois/blob/master/tools/remote/README_CN.md
-- 使用说明（中文）：https://github.com/larsonzh/whois/blob/master/docs/USAGE_CN.md
-- 使用说明（英文）：https://github.com/larsonzh/whois/blob/master/docs/USAGE_EN.md
+最简示例
 
-注意：PowerShell 启动器已停用，请使用 Git Bash 版本。
-
-## whois 客户端命令行用法与输出契约
-
-- 标题行（默认开启，-P/--plain 可关闭）
-  - 开头打印：`=== Query: <查询项> ===`，查询项位于标题行第 3 字段（$3）
-  - 便于 BusyBox awk/grep 管道固定提取 `$3`
-
-- 末尾权威 RIR 尾行（默认开启，-P/--plain 可关闭）
-  - 每个查询输出的最后一行：`=== Authoritative RIR: <server> ===`
-  - 在“折叠为一行”后，该字段位于最后一个字段（`$(NF)`），常用于按 RIR 过滤
-
-- 跳转与超时
-  - 默认自动跟随重定向（最多 `-R/--max-redirects` 次，默认 5）
-  - `-Q/--no-redirect` 禁止跟随重定向，仅查询起始服务器（或 `--host` 指定服务器）
-  - `-t/--timeout` 设置网络超时秒数（默认 5s）
-  - `-r/--retries` 设置单次请求内的轻量重试次数（默认 2 次）
-
-- 批量模式
-  - `-B/--batch` 显式从标准输入读取查询项，每行一个；启用后禁止再给位置参数
-  - 若未给位置参数且 stdin 非 TTY，会自动进入隐式批量模式
-
-- 常用示例
-
-```bash
-# 单条查询（自动重定向）
-whois-x86_64 8.8.8.8
-
-# 指定起始 RIR 并禁止重定向
+```sh
+# 固定起始 RIR 并禁止重定向
 whois-x86_64 --host apnic -Q 103.89.208.0
 
-# 批量（显式）
+# 批量（从标准输入读取）
 cat ip_list.txt | whois-x86_64 -B --host apnic
-
-# 纯净输出（不含标题/尾行），适合只要 whois 正文时
-whois-x86_64 -P 8.8.8.8
 ```
 
-- BusyBox awk 折叠与提取示例（与脚本 `func/lzispdata.sh` 风格一致）：
-
-```sh
-... | grep -Ei '^(=== Query:|netname|mnt-|e-mail|=== Authoritative RIR:)' \
-  | awk -v count=0 '/^=== Query/ {if (count==0) printf "%s", $3; else printf "\n%s", $3; count++; next} \
-      /^=== Authoritative RIR:/ {printf " %s", toupper($4)} \
-      (!/^=== Query:/ && !/^=== Authoritative RIR:/) {printf " %s", toupper($2)} END {printf "\n"}'
-# 注：折叠后 `$(NF)` 即为权威 RIR 域名（大写），可据此与目标 RIR 进行过滤
-```
-
-## 脚本环境变量（ISP 批量归类脚本）
-
-脚本 `release/lzispro/func/lzispdata.sh` 在调用内置 whois 客户端时，支持通过环境变量微调过滤模式与关键词，默认对 BusyBox 友好、避免额外外部管道：
-
-- WHOIS_TITLE_GREP：标题投影（-g），对字段名做不区分大小写的前缀匹配，多个用 `|` 分隔
-  - 默认：`netname|mnt-|e-mail`
-- WHOIS_GREP_REGEXP：正则过滤（--grep/--grep-cs），使用 POSIX ERE
-  - 默认：`CNC|UNICOM|CHINANET|TELECOM|BJTEL|CMCC|CMNET|CRTC|CHINAMOBILE|CTTNET|CTTSDNET|TIETONG|CTTSH|CHINABTN|HEBBTN|TJBTN|NXBCTV|CERNET|GWNET|GWBN|GXBL|WSNET|DXTNET|BITNET|ZBTNET|DRPENG|BTTE`
-- WHOIS_GREP_MODE：正则选择模式，`line` 或 `block`
-  - 默认：`line`（行模式，仅输出命中行，保留头尾标记，便于 awk 折叠）
-- WHOIS_KEEP_CONT：在行模式下是否展开续行到整个字段块（标题+续行），`1` 开启，`0` 关闭
-  - 默认：`0`
-
-示例：
-
-BusyBox/ash（OpenWrt/梅林路由器等）
-
-```sh
-export WHOIS_GREP_MODE=line
-export WHOIS_KEEP_CONT=0
-export WHOIS_TITLE_GREP='netname|mnt-|e-mail'
-export WHOIS_GREP_REGEXP='CNC|UNICOM|CHINANET|TELECOM|BJTEL|CMCC|CMNET|CRTC|CHINAMOBILE|CTTNET|CTTSDNET|TIETONG|CTTSH|CHINABTN|HEBBTN|TJBTN|NXBCTV|CERNET|GWNET|GWBN|GXBL|WSNET|DXTNET|BITNET|ZBTNET|DRPENG|BTTE'
-./lzispro.sh
-```
-
-Windows PowerShell（仅示意设置变量方式）
-
-```powershell
-$env:WHOIS_GREP_MODE = 'block'       # 回退到块模式（整段输出）
-$env:WHOIS_KEEP_CONT = '1'           # 行模式下展开续行（若 WHOIS_GREP_MODE=line）
-$env:WHOIS_TITLE_GREP = 'netname|mnt-|e-mail'
-$env:WHOIS_GREP_REGEXP = 'CNC|UNICOM|CHINANET|TELECOM|BJTEL|CMCC|CMNET|CRTC|CHINAMOBILE|CTTNET|CTTSDNET|TIETONG|CTTSH|CHINABTN|HEBBTN|TJBTN|NXBCTV|CERNET|GWNET|GWBN|GXBL|WSNET|DXTNET|BITNET|ZBTNET|DRPENG|BTTE'
-```
-
-提示：从 `lzispdata.sh v1.1.9` 开始，默认改为“行模式 + 不展开续行”，更利于后续 awk 一行聚合与 RIR 尾行取值；如需旧行为，设置 `WHOIS_GREP_MODE=block` 即可回退。
+提示：PowerShell 启动器已停用，请使用 Git Bash 版本。
 
 # 功能
 - 从 APNIC 下载最新 IP 信息数据。
