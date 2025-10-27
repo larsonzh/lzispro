@@ -5,7 +5,13 @@ Multi process parallel acquisition tool for IP address data of ISP network opera
 
 *呵呵，妥妥的一个主机多进程网络性能，计算性能，读写性能测试工具！能以极致指标跑好这个脚本，才敢说有台好设备可以凑合用了。*
 
-**v1.1.8**
+**v1.1.9**
+
+## 更新快讯 / Updates
+
+- 2025-10-28：同步 whois v3.2.0 全静态多架构二进制到 `release/lzispro/whois/`；`func/lzispdata.sh` 默认采用“行模式 + 不展开续行”，更利于 BusyBox awk 聚合（可用环境变量回退）。详见 whois 文档与发布页。
+  - whois 使用说明（中文/英文）：`../whois/docs/USAGE_CN.md` | `../whois/docs/USAGE_EN.md`
+  - whois Release: https://github.com/larsonzh/whois/releases/tag/v3.2.0
 
 工具采用 Shell 脚本编写，参考并借鉴 clangcn（ https://github.com/clangcn/everyday-update-cn-isp-ip.git ）项目代码和思路，通过多进程并行处理技术，对信息检索和数据写入过程进行优化，极大提高 ISP 运营商分项地址数据生成效率，减少运行时间。
 
@@ -25,10 +31,18 @@ Multi process parallel acquisition tool for IP address data of ISP network opera
 
 项目内置自定义的多个基于 Linux 系统环境，符合 whois 规约，具有智能重定向功能，支持海量数据查询，无外部依赖的轻量级高性能 whois 客户端（C 语言实现），涵盖 x86 | x86_64 | armv6/v7 | aarch64 | mipsel | mips64el | loongarch64 平台架构，可在嵌入式设备、台式机、服务器和云网络上以极低的资源占用率，友好的接口方式，高速而可靠的运行，并提供 Windows 下 Git Bash 一键远程静态交叉编译与可选 QEMU 冒烟测试的脚本。
 
-- 说明文档（中文）：`release/lzispro/whois/remote/README_CN.md`
-- 本地启动脚本（Git Bash）：`release/lzispro/whois/remote/remote_build_and_test.sh`
-- 使用说明（中文）：`release/lzispro/whois/USAGE_CN.md`
-- 使用说明（英文）：`release/lzispro/whois/USAGE_EN.md`
+- whois 仓库（同工作区本地路径）：`../whois`
+- 远程交叉编译说明（中文）：`../whois/tools/remote/README_CN.md`
+- 本地启动脚本（Git Bash）：`../whois/tools/remote/remote_build_and_test.sh`
+- whois 使用说明（中文）：`../whois/docs/USAGE_CN.md`
+- whois 使用说明（英文）：`../whois/docs/USAGE_EN.md`
+
+提示：若在 GitHub 浏览，请访问
+
+- whois 仓库首页：https://github.com/larsonzh/whois
+- 远程构建说明：https://github.com/larsonzh/whois/blob/master/tools/remote/README_CN.md
+- 使用说明（中文）：https://github.com/larsonzh/whois/blob/master/docs/USAGE_CN.md
+- 使用说明（英文）：https://github.com/larsonzh/whois/blob/master/docs/USAGE_EN.md
 
 注意：PowerShell 启动器已停用，请使用 Git Bash 版本。
 
@@ -77,6 +91,42 @@ whois-x86_64 -P 8.8.8.8
       (!/^=== Query:/ && !/^=== Authoritative RIR:/) {printf " %s", toupper($2)} END {printf "\n"}'
 # 注：折叠后 `$(NF)` 即为权威 RIR 域名（大写），可据此与目标 RIR 进行过滤
 ```
+
+## 脚本环境变量（ISP 批量归类脚本）
+
+脚本 `release/lzispro/func/lzispdata.sh` 在调用内置 whois 客户端时，支持通过环境变量微调过滤模式与关键词，默认对 BusyBox 友好、避免额外外部管道：
+
+- WHOIS_TITLE_GREP：标题投影（-g），对字段名做不区分大小写的前缀匹配，多个用 `|` 分隔
+  - 默认：`netname|mnt-|e-mail`
+- WHOIS_GREP_REGEXP：正则过滤（--grep/--grep-cs），使用 POSIX ERE
+  - 默认：`CNC|UNICOM|CHINANET|TELECOM|BJTEL|CMCC|CMNET|CRTC|CHINAMOBILE|CTTNET|CTTSDNET|TIETONG|CTTSH|CHINABTN|HEBBTN|TJBTN|NXBCTV|CERNET|GWNET|GWBN|GXBL|WSNET|DXTNET|BITNET|ZBTNET|DRPENG|BTTE`
+- WHOIS_GREP_MODE：正则选择模式，`line` 或 `block`
+  - 默认：`line`（行模式，仅输出命中行，保留头尾标记，便于 awk 折叠）
+- WHOIS_KEEP_CONT：在行模式下是否展开续行到整个字段块（标题+续行），`1` 开启，`0` 关闭
+  - 默认：`0`
+
+示例：
+
+BusyBox/ash（OpenWrt/梅林路由器等）
+
+```sh
+export WHOIS_GREP_MODE=line
+export WHOIS_KEEP_CONT=0
+export WHOIS_TITLE_GREP='netname|mnt-|e-mail'
+export WHOIS_GREP_REGEXP='CNC|UNICOM|CHINANET|TELECOM|BJTEL|CMCC|CMNET|CRTC|CHINAMOBILE|CTTNET|CTTSDNET|TIETONG|CTTSH|CHINABTN|HEBBTN|TJBTN|NXBCTV|CERNET|GWNET|GWBN|GXBL|WSNET|DXTNET|BITNET|ZBTNET|DRPENG|BTTE'
+./lzispro.sh
+```
+
+Windows PowerShell（仅示意设置变量方式）
+
+```powershell
+$env:WHOIS_GREP_MODE = 'block'       # 回退到块模式（整段输出）
+$env:WHOIS_KEEP_CONT = '1'           # 行模式下展开续行（若 WHOIS_GREP_MODE=line）
+$env:WHOIS_TITLE_GREP = 'netname|mnt-|e-mail'
+$env:WHOIS_GREP_REGEXP = 'CNC|UNICOM|CHINANET|TELECOM|BJTEL|CMCC|CMNET|CRTC|CHINAMOBILE|CTTNET|CTTSDNET|TIETONG|CTTSH|CHINABTN|HEBBTN|TJBTN|NXBCTV|CERNET|GWNET|GWBN|GXBL|WSNET|DXTNET|BITNET|ZBTNET|DRPENG|BTTE'
+```
+
+提示：从 `lzispdata.sh v1.1.9` 开始，默认改为“行模式 + 不展开续行”，更利于后续 awk 一行聚合与 RIR 尾行取值；如需旧行为，设置 `WHOIS_GREP_MODE=block` 即可回退。
 
 # 功能
 - 从 APNIC 下载最新 IP 信息数据。
@@ -174,11 +224,11 @@ whois-x86_64 -P 8.8.8.8
 
 ## 二、安装项目脚本
 
-1. 下载本工具的软件压缩包 lzsipcn-[version ID].tgz（例如：lzispro-v1.1.8.tgz）。
+1. 下载本工具的软件压缩包 lzsipcn-[version ID].tgz（例如：lzispro-v1.1.9.tgz）。
 
 2. 将压缩包复制到设备的任意有读写权限的目录。
 
-3. 在 Shell 终端中使用解压缩命令在当前目录中解压缩，生成 lzispro-[version ID] 目录（例如：lzispro-v1.1.8），其中包含一个 lzispro 目录，是脚本所在目录。
+3. 在 Shell 终端中使用解压缩命令在当前目录中解压缩，生成 lzispro-[version ID] 目录（例如：lzispro-v1.1.9），其中包含一个 lzispro 目录，是脚本所在目录。
 
 ```markdown
   tar -xzvf lzispro-[version ID].tgz
