@@ -1,0 +1,16 @@
+# Logs (keep local run logs out of the repo)
+*.log
+release/lzispro/*.log
+
+# Build/output artifacts generated locally
+out/
+release/artifacts/
+
+# Editor/OS metadata
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Temp files
+*.tmp
+tmp/
